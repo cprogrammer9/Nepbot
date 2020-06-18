@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+    <metadata>
+        <id>ImgFlipApi</id>
+        <version>1.0.0</version>
+        <authors>github@thibautvial.com</authors>
+        <projectUrl>https://github.com/mcthib/ImgFlip</projectUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>This package contains the (managed) ImgFlipApi library that allows you to create memes using the webservice at imgflip.com.</description>
+        <summary>A small library to make memes using the API from imgflip.com</summary>
+        <copyright>Free to use for any purpose</copyright>
+        <dependencies>
+            <group targetFramework=".NETFramework4.5">
+                <dependency id="Newtonsoft.Json" version="6.0.8" />
+            </group>
+        </dependencies>
+    </metadata>
+    <files>
+        <file src="bin\Release\ImgFlip.dll" target="ImgFlip.dll" />
+    </files>
+</package>

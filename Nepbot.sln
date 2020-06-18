@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29905.134
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nepbot", "Nepbot.csproj", "{64E9A87E-B0A2-49B1-B375-313760D8B384}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{64E9A87E-B0A2-49B1-B375-313760D8B384}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{64E9A87E-B0A2-49B1-B375-313760D8B384}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{64E9A87E-B0A2-49B1-B375-313760D8B384}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{64E9A87E-B0A2-49B1-B375-313760D8B384}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {80BDF7D4-0E0B-411F-89AE-03A823BCECAC}
+	EndGlobalSection
+EndGlobal
