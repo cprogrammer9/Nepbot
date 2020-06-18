@@ -38,7 +38,6 @@ namespace NepBot
         public static List<CreateEntity> _playerData = new List<CreateEntity>();
         public static List<GuildData> AllGuildData = new List<GuildData>();
         public static List<ulong> _playersIDs = new List<ulong>();
-        public static bool strangeyMonitor = false;
         public static bool continuously = false;
         public static ulong[] excludePeople = new ulong[] { 138085604280893440, 698768363232428104, 394458969932038144UL, 513059797201846273UL, 289913686867443713UL, 362023139103735826UL, 130085308036284416UL, 508129645854588928UL, 338277916360048640UL, 401728599821910017UL, 433127658230906890UL, 109848271505080320UL };
         private DateTime loserGuy = DateTime.Now;
@@ -945,30 +944,7 @@ namespace NepBot
                 }
                 string f = Message.Content.Split(' ')[0];
 
-                bool flag = !this.Context.Message.Content.ToLower().Contains("!nep");
-                if (flag)
-                {
-                    bool flag2 = this.Context.User.Id == 401447771498086409UL;
-                    if (flag2)
-                    {
-                        bool flag3 = Program.strangeyMonitor && this.Context.Guild.Id == 472551343148761090UL;
-                        if (flag3)
-                        {
-                            bool flag4 = !Program.continuously;
-                            if (flag4)
-                            {
-                                Program.strangeyMonitor = false;
-                            }
-                            await this.Context.Client.GetGuild(615355477932507244UL).GetUser(187273824176177152UL).SendMessageAsync(string.Format("{0} {1} --- {2}\n{3}", new object[]
-                            {
-                                this.Context.User.Username,
-                                DateTime.Now,
-                                this.Context.Channel.Name,
-                                this.Context.Message.Content
-                            }), false, null, null);
-                        }
-                    }
-                }
+                
                 if (this.Context.Message != null && !(this.Context.Message.Content == ""))
                 {
                     if (!this.Context.User.IsBot)
