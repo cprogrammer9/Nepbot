@@ -356,7 +356,8 @@ namespace NepBot.Core.Commands
                 if (ssrsb != null && ssrsb.ToString() != string.Empty)
                     b.AddField("Super Super Rare", $"{ssrsb.ToString()}");
 
-                ud.StartSession();
+                //ud.StartSession();
+                Program.cardSessions.Add(new CreateSessions(string.Empty, ud));
                 await Context.Channel.SendMessageAsync("", false, b.Build());
             }
             catch (Exception n)

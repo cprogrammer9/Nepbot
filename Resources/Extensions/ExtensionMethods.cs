@@ -77,7 +77,7 @@ namespace NepBot.Resources.Extensions
 
         public static string RemoveTagCharacters(this string bas)
         {
-            string[] chars = new string[] { "<!", "<@!", ">", "<@" };
+            string[] chars = new string[] { "<!", "<@!", ">", "<@", "<#" };
             foreach (string g in chars)
             {
                 bas = bas.Replace(g, string.Empty);
@@ -240,13 +240,13 @@ namespace NepBot.Resources.Extensions
                 bool flag2 = !string.IsNullOrEmpty(socketGuildUser.Nickname) || !string.IsNullOrWhiteSpace(socketGuildUser.Nickname);
                 if (flag2)
                 {
-                    bool flag3 = socketGuildUser.Nickname.ToLower() == username;
+                    bool flag3 = socketGuildUser.Nickname.Contains(username);
                     if (flag3)
                     {
                         return socketGuildUser.Id;
                     }
                 }
-                bool flag4 = socketGuildUser.Username.ToLower() == username;
+                bool flag4 = socketGuildUser.Username.Contains(username);
                 if (flag4)
                 {
                     return socketGuildUser.Id;
@@ -260,9 +260,9 @@ namespace NepBot.Resources.Extensions
             try
             {
                 username = username.RemoveTagCharacters().ToLower();
-                ulong isId = 0;
+                //ulong isId = 0;
                 string toReturn = string.Empty;
-                if (ulong.TryParse(username, out isId))
+                if (ulong.TryParse(username, out ulong isId))
                 {
                     return toReturn.NicknameChecker(context.Guild.GetUser(isId));
                 }
@@ -283,58 +283,58 @@ namespace NepBot.Resources.Extensions
             try
             {
                 IReadOnlyCollection<SocketGuildUser> f = context.Guild.Users;
+                List<SocketGuildUser> matchesFound = new List<SocketGuildUser>();
                 username = username.RemoveTagCharacters().ToLower();
                 ulong isId = 0;
                 if (ulong.TryParse(username, out isId))
                 {
                     return context.Guild.GetUser(isId);
                 }
-                if (requireExactName)
+
+                foreach (SocketGuildUser socketGuildUser2 in f)
                 {
-                    foreach (SocketGuildUser socketGuildUser in f)
-                    {
-                        bool flag2 = !string.IsNullOrEmpty(socketGuildUser.Nickname) || !string.IsNullOrWhiteSpace(socketGuildUser.Nickname);
-                        if (flag2)
-                        {
-                            bool flag3 = socketGuildUser.Nickname.ToLower() == username;
-                            if (flag3)
-                            {
-                                return socketGuildUser;
-                            }
-                        }
-                        bool flag4 = socketGuildUser.Username.ToLower() == username;
-                        if (flag4)
-                        {
-                            return socketGuildUser;
-                        }
-                    }
+                    if (NicknameOrNot(socketGuildUser2, username) != 2)
+                        matchesFound.Add(socketGuildUser2);
                 }
-                else
+                if (matchesFound.Count == 1)
+                    return matchesFound[0];
+
+                foreach (SocketGuildUser sgu in matchesFound)
                 {
-                    foreach (SocketGuildUser socketGuildUser2 in f)
-                    {
-                        bool flag5 = !string.IsNullOrEmpty(socketGuildUser2.Nickname) || !string.IsNullOrWhiteSpace(socketGuildUser2.Nickname);
-                        if (flag5)
-                        {
-                            bool flag6 = socketGuildUser2.Nickname.ToLower().Contains(username);
-                            if (flag6)
-                            {
-                                return socketGuildUser2;
-                            }
-                        }
-                        bool flag7 = socketGuildUser2.Username.ToLower().Contains(username);
-                        if (flag7)
-                        {
-                            return socketGuildUser2;
-                        }
-                    }
+                    string name = (NicknameOrNot(sgu, username) == 0) ? sgu.Nickname.ToLower() : sgu.Username.ToLower();
+                    if (username == name) // exact match check
+                        return sgu;
+                    int difference = name.Length - username.Length;
+                    if (difference < 3)
+                        return sgu;
                 }
+                return matchesFound[0];
             }
             catch (Exception m)
             {
                 ExtensionMethods.WriteToLog(ExtensionMethods.LogType.ErrorLog, m, "From: FindGuildUser");
             }
             return null;
+        }
+
+        //0 = nickname true, 1 = username true nickname false, 2 = either true but no matches found
+        private static int NicknameOrNot(SocketGuildUser sgu, string matchingName)
+        {
+            bool hasnickname = !string.IsNullOrEmpty(sgu.Nickname) || !string.IsNullOrWhiteSpace(sgu.Nickname);
+            if (hasnickname)
+            {
+                bool nicknamematches = sgu.Nickname.ToLower().Contains(matchingName);
+                if (nicknamematches)
+                {
+                    return 0;
+                }
+            }
+            bool usernamematches = sgu.Username.ToLower().Contains(matchingName);
+            if (usernamematches)
+            {
+                return 1;
+            }
+            return 2;
         }
 
         public static bool IsInUserData(SocketUser sock)

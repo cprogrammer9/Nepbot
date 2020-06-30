@@ -75,6 +75,7 @@ namespace NepBot.Resources.Code_Implements
             info = info.Replace("games", "Games");
             info = info.Replace("simple", "SimpleCommands");
             info = info.Replace("server", "GuildCommands");
+            info = info.Replace("roleplay", "RoleplayingCommands");
 
             if (info == "modadmin")
                 return string.Empty;

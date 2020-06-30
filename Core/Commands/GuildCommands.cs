@@ -146,7 +146,8 @@ namespace NepBot.Core.Commands
                     await scc.Guild.GetTextChannel(channelID).SendMessageAsync(customMsg);
                     return;
                 }
-                IUserMessage m = await scc.Channel.SendMessageAsync($"{ExtensionMethods.NameGetter(sgu, scc.Guild)} has reached {lvlName} {levelNumber} YAY! Pudding for everyone!! I'm gonna give you 2500 pudding... *gulp* y-yes... 2500...");
+                string puddingValue = (lvlName == "Paragraph Roleplay Level") ? "5000" : "2500";
+                IUserMessage m = await scc.Channel.SendMessageAsync($"{ExtensionMethods.NameGetter(sgu, scc.Guild)} has reached {lvlName} {levelNumber} YAY! Pudding for everyone!! I'm gonna give you {puddingValue} pudding per level gained... *gulp* y-yes... {puddingValue}...");
                 AddTaskControl.Add(new TaskControl(null, 25000, false));
                 AddTaskControl[AddTaskControl.Count - 1].AddDeletion(m);
                 //await Task.Delay(25000);
@@ -174,6 +175,7 @@ namespace NepBot.Core.Commands
                 var f = (RestUserMessage)Context.Channel.GetMessageAsync(idn).Result;
                 await f.PinAsync();
             }
+            //(RestUserMessage)
             catch (Exception i)
             {
                 await base.Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]

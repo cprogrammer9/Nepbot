@@ -23,6 +23,7 @@ using NepBot.Resources.Code_Implements;
 using NepBot.Core;
 using System.Linq;
 using Discord.Rest;
+using static NepBot.Data.UserData;
 
 namespace NepBot
 {
@@ -46,6 +47,10 @@ namespace NepBot
         public static SocketCommandContext _contextDelete;
         public const ulong myGuildId = 472551343148761090;
         public static SocketGuild myGuildSocket;
+        readonly ulong[] excludeGuilds = new ulong[] { 373292974408466443 };
+        public static List<CreateSessions> cardSessions = new List<CreateSessions>();
+        public static List<CreateSessions> characterCreationSessions = new List<CreateSessions>();
+        public static int dailyPosts = 0;
         //public static DateTime dailyPudding;
 
         /// <summary>
@@ -135,7 +140,7 @@ namespace NepBot
         private void SaveTimer()
         {
             saveTimer = new System.Timers.Timer();
-            saveTimer.Interval = 300000;
+            saveTimer.Interval = new TimeSpan(0,15,0).TotalMilliseconds;
 
             saveTimer.Elapsed += SerializeUserData;
             saveTimer.AutoReset = true;
@@ -169,11 +174,14 @@ namespace NepBot
                     //  Console.WriteLine("RP Save Data is null");
                     //}
                     //RepopulatePlayerDataList(rpSaveData);
-                    AllGuildData.Clear();
-                    for (int i = 0; i < guildSaveData.Count; i++)
-                    {
-                        AllGuildData.Add(guildSaveData[i]);
-                    }
+                    //AllGuildData.Clear(); 
+
+                    //////////this is broken! WTF?? FIX IT SOMETIME//////////////
+
+                    //for (int i = 0; i < guildSaveData.Count; i++)
+                    //{
+                    //  AllGuildData.Add(guildSaveData[i]);
+                    //}
                 }
 
                 catch (Exception m)
@@ -184,6 +192,7 @@ namespace NepBot
             }
         }
 
+        int ccc = 0;//save file number attacher counter for making backup of save
         private void SerializeUserData(Object source, System.Timers.ElapsedEventArgs e)
         {
             string fileName = "User Data List";
@@ -197,6 +206,20 @@ namespace NepBot
             object rpgSaveObj = rpgObj;
             System.Runtime.Serialization.Formatters.Binary.BinaryFormatter n = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
             string pat = DataPath(fileName);
+            
+            try
+            {
+                while (File.Exists($@"C:\Users\Akane Kurashiki\source\repos\Nepbot\Nepbot\Data\Backups of save data\{fileName}{ccc}"))
+                {
+                    ccc++;
+                }
+                File.Copy(pat, $@"C:\Users\Akane Kurashiki\source\repos\Nepbot\Nepbot\Data\Backups of save data\{fileName}{ccc}", false);
+            }
+            catch (Exception nm)
+            {
+                ExtensionMethods.WriteToLog(ExtensionMethods.LogType.ErrorLog, nm, "Error saving data");
+                return;
+            }
             using (FileStream stream = new FileStream(pat, FileMode.Create))
             {
                 try
@@ -257,11 +280,10 @@ namespace NepBot
 
         private async Task AddAllGuilds()
         {
-            StringBuilder tester = new StringBuilder();
             foreach (var g in _client.Guilds)
             {
                 AllGuildData.Add(new GuildData(g.Id));
-                tester.Append($"{g.Name}\n");
+                AllGuildData[AllGuildData.Count - 1].SetData();
             }
         }
         #endregion
@@ -273,10 +295,10 @@ namespace NepBot
 
         public async Task Client_UserJoined(SocketGuildUser sgu)
         {
-            var sent = await this._client.GetGuild(sgu.Guild.Id).GetTextChannel(643769622453288970).SendMessageAsync($"Welcome to the server <@{sgu.Id}> ! Roleplay channels are hidden by default, we are both a roleplay and conversational server. If you want to roleplay, react with <:perpell:571875093870018576>, if you don't want to roleplay, reaction with <:nepswoon:591333460820361244>. Check out <#472552180235370517> for details on rules. A few things: We are laid back here. I don't care too much if you do things like talk in image channels or post images in other channels (not post a lot in a row). ERP NOT allowed. Don't ask about it and even making it obvious you are taking an ERP to DMs is not allowed. Keep it all private no one wants to know. Other than that, check the rules out for the other details and have fun!");
+            RestUserMessage sent = await this._client.GetGuild(sgu.Guild.Id).GetTextChannel(643769622453288970).SendMessageAsync($"Welcome to the server <@{sgu.Id}> ! Roleplay channels are hidden by default, we are both a roleplay and conversational server. If you want to roleplay, react with <:perpell:571875093870018576>, if you don't want to roleplay, reaction with <:nepswoon:591333460820361244>. Check out <#472552180235370517> for details on rules. A few things: We are laid back here. I don't care too much if you do things like talk in image channels or post images in other channels (not post a lot in a row). ERP NOT allowed. Don't ask about it and even making it obvious you are taking an ERP to DMs is not allowed. Keep it all private no one wants to know. Other than that, check the rules out for the other details and have fun!");
             await sent.AddReactionAsync(_client.GetGuild(472551343148761090).GetEmoteAsync(571875093870018576).Result);
             await sent.AddReactionAsync(_client.GetGuild(472551343148761090).GetEmoteAsync(591333460820361244).Result);
-            //roleSet.Add(new RoleSet(sgu.Id, sent.Id, 571875093870018576, 591333460820361244));
+
         }
 
         private List<RoleSet> roleSet = new List<RoleSet>() { };
@@ -337,6 +359,7 @@ namespace NepBot
                     //await _client.GetGuild(472551343148761090).GetTextChannel(643769622453288970).SendMessageAsync("Supposed to assign nepswoon role");
                     await _client.GetGuild(472551343148761090).GetUser(sr.UserId).RemoveRoleAsync(_client.GetGuild(472551343148761090).GetRole(472552681374744578));
                     await _client.GetGuild(472551343148761090).GetUser(sr.UserId).AddRoleAsync(_client.GetGuild(472551343148761090).GetRole(556722030393950219));
+
                     return;
                 }
                 //  await _client.GetGuild(472551343148761090).GetTextChannel(643769622453288970).SendMessageAsync("No if statement used");
@@ -362,7 +385,9 @@ namespace NepBot
                     DefaultRunMode = RunMode.Async,
                     LogLevel = LogSeverity.Critical
                 });
-                _client.MessageReceived += Client_MessageReceived;
+                _client.MessageReceived += Client_BotCommands;
+                _client.MessageReceived += Client_ExpPoints;
+                _client.MessageReceived += Client_StringSearches;
                 _client.UserLeft += Client_UserLeft;
                 _client.UserJoined += Client_UserJoined;
                 _client.ReactionAdded += Client_Reaction;
@@ -450,91 +475,30 @@ namespace NepBot
         }
 
 
-        ulong snapshot = 0;
-        private bool IsParagraph(ulong ID)
-        {
-            List<ulong> Categories = new List<ulong>();
-            Categories.Add(472551695432286240);
-            Categories.Add(472551726910668800);
-            Categories.Add(472551715766403072);
-            Categories.Add(472551737761202177);
-            Categories.Add(472551745994620949);
-            Categories.Add(558458080547962883);
-            bool np = false;
-
-            foreach (ulong ul in Categories)
-            {
-                if (ul == ID)
-                {
-                    np = true;
-                    break;
-                }
-            }
-
-            if (np && Context.User.Id != snapshot)
-            {
-                var pp = Context.Message.Content.Split(' ');
-                if (pp.Length >= 249)
-                {
-                    RPParticipants rpp = null;
-                    StringBuilder sb = new StringBuilder();
-                    foreach (RPParticipants g in myGuild.rpParticipants)
-                    {
-                        sb.Append(g.rpChannel + " " + Context.Channel.Id);
-                        if (Context.Channel.Id == g.rpChannel)
-                        {
-                            rpp = g;
-                            break;
-                        }
-                    }
-                    SocketUser sgu = null;
-                    if (rpp != null)
-                        for (int i = 0; i < rpp.sgu.Count; i++)
-                        {
-                            if (Context.User.Id == rpp.sgu[i] && i + 1 < rpp.sgu.Count)
-                            {
-                                sgu = ExtensionMethods.GetSocketUser(rpp.sgu[i + 1].ToString(), Context, false);
-                                break;
-                            }
-                            else if (Context.User.Id == rpp.sgu[i] && i + 1 >= rpp.sgu.Count)
-                            {
-                                sgu = ExtensionMethods.GetSocketUser(rpp.sgu[0].ToString(), Context, false);
-                                break;
-                            }
-                        }
-                    if (sgu != null)
-                    {
-                        SendMessage($"<@{sgu.Id}> your turn to reply in <#{rpp.rpChannel}>", 622988672739966996, Context.Guild);
-                    }
-                    snapshot = Context.User.Id;
-                }
-            }
-
-            return np;
+        private bool IsParagraph(ulong wordCount)
+        {           
+            return wordCount >= 250;
         }
 
         public bool IsCasual(ulong ID)
         {
             List<ulong> Categories = new List<ulong>();
-            Categories.Add(472551756656672798);
-            Categories.Add(472551762990071828);
-            Categories.Add(472551769336184842);
-            Categories.Add(472551775178850310);
-            Categories.Add(472551782548242442);
-            Categories.Add(558458110168137748);
-            bool np = false;
+            Categories.Add(472570210180923412);
+            Categories.Add(645487693266157588);
+            Categories.Add(574474515854262272);
+            // Also adds the DND Style to the casual roleplay group.
+            bool np = Context.Guild.GetTextChannel(Context.Channel.Id).CategoryId == 472551467212079114 || Context.Guild.GetTextChannel(Context.Channel.Id).CategoryId == 574126077241196566;
             foreach (ulong ul in Categories)
             {
                 if (ul == ID)
                 {
-                    np = true;
+                    np = false;
                     break;
                 }
             }
 
             return np;
         }
-
         public UserData ReturnPositionInList(ulong authorID)
         {
             int x = -1;
@@ -549,66 +513,217 @@ namespace NepBot
             return (x != -1) ? expPoints[x] : null;
         }
 
-        public async Task AddExp(int length)
+        struct UserInfo
         {
-            //ExtensionMethods.WriteToLog(ExtensionMethods.LogType.CustomMessage, null, v.ToString());            
-            UserData user = ReturnPositionInList(Context.User.Id);
-            //ExtensionMethods.WriteToLog(ExtensionMethods.LogType.Debug, null, Message.Author.Id.ToString());            
-            if (user == null)
-            {
-                expPoints.Add(new UserData(Context.User.Id));
-                user = expPoints[expPoints.Count - 1];
-            }
-            if (user.sessionOn)
-                tData = user;
-            else
-                tData = null;
+            public readonly ulong roleNumber;
+            public readonly int roleLevel;
 
-            user.ReturnLastPosted = DateTime.Now;
-            if (!IsOnPlayerData(Context))
+            public UserInfo(ulong num, int lev)
             {
-                _playerData.Add(new PlayerData(Context.User.Id));
+                roleNumber = num;
+                roleLevel = lev;
             }
-            if (IsParagraph(Context.Channel.Id))
+        }
+
+        private List<UserInfo> casualLevels = new List<UserInfo>()
+        {
+            new UserInfo(472552616753364998, 0),
+            new UserInfo(723660656670408764, 10),
+            new UserInfo(559883205117739009, 20),
+            new UserInfo(559875143166590988, 30),
+            new UserInfo(559873324352536609, 40),
+            new UserInfo(559882664576942081, 50),
+            new UserInfo(0, 65),
+            new UserInfo(559882927169732619, 75),
+            new UserInfo(0, 85),
+            new UserInfo(0, 95),
+            new UserInfo(723661022539415612, 100),
+        };
+
+        private List<UserInfo> paraLevels = new List<UserInfo>()
+        {
+            new UserInfo(472552639763185667, 0),
+            new UserInfo(559890428590293007, 10),
+            new UserInfo(559884035308912663, 20),
+            new UserInfo(723662154422812792, 30),
+            new UserInfo(723662150790283335, 40),
+            new UserInfo(559884439052877825, 50),
+            new UserInfo(0, 65),
+            new UserInfo(723662172281897065, 75),
+            new UserInfo(0, 85),
+            new UserInfo(0, 95),
+            new UserInfo(559888706866118656, 100),
+        };
+
+        /// <summary>
+        /// rp type 0 = casual, 1 = para
+        /// </summary>
+        /// <param name="ud"></param>
+        /// <param name="rpType"></param>
+        private async Task PromoteUser(UserData ud, int rpType)
+        {
+            try
             {
-                int snapshop = user.ParaLevel;
-                user.CurrentParaExp += 500;
-                user.TotalPosts++;
-                user.Pudding += 100 + (ulong)user.ParaLevel * 10;
-                if (user.ParaLevel != snapshop)
+                if (Context.Guild.Id != myGuildId)
+                    return;
+
+                if (rpType == 0)//casual
                 {
-                    user.Pudding += 2500;
-                    await GuildCommands.MessageChannel(Context, Context.User, "Paragraph Roleplay Level", user.ParaLevel.ToString());
+                    int arrayIndex = ud.CasualLevel / 10; // automatically finds the array index based on the server's level guaranteed to find their maximum deserved role
+                    for (int i = arrayIndex; i > 0; i--)
+                    {
+                        if (casualLevels[i].roleNumber == 0)
+                        {
+                            continue;
+                        }
+                        await Context.Guild.GetUser(ud.UserID).AddRoleAsync(Context.Guild.GetRole(casualLevels[i].roleNumber));
+                    }
                 }
-                int amt = Context.Message.Content.Split(' ').Length;
-                //$"<@{sgu.Id}> your turn to reply in <#{rpp.rpChannel}>"
-                await GuildCommands.MessageChannel(Context, Context.User, "", "", $"{ExtensionMethods.NameGetter(Context.User, Context.Guild)}'s word count is {amt} in <#{Context.Channel.Id}>", 632720832455639089);
-                return;
+                else if (rpType == 1)//para
+                {
+                    int arrayIndex = ud.ParaLevel / 10; // automatically finds the array index based on the server's level guaranteed to find their maximum deserved role
+                    for (int i = arrayIndex; i > 0; i--)
+                    {
+                        if (paraLevels[i].roleNumber == 0)
+                        {
+                            continue;
+                        }
+                        await Context.Guild.GetUser(ud.UserID).AddRoleAsync(Context.Guild.GetRole(paraLevels[i].roleNumber));
+                    }
+                }
             }
-            else if (IsCasual(Context.Channel.Id))
+            catch (Exception i)
             {
-                int snapshop = user.CasualLevel;
-                user.CurrentCasualExp += 250;
-                user.TotalPosts++;
-                user.Pudding += 25 + (ulong)user.CasualLevel / 2;
-                if (user.CasualLevel != snapshop)
+                await Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
                 {
-                    user.Pudding += 2500;
-                    await GuildCommands.MessageChannel(Context, Context.User, "Casual Roleplay Level", user.CasualLevel.ToString());
-                }
-                return;
+                    i.Message,
+                    i.TargetSite,
+                    i.Source,
+                    i.InnerException,
+                    i.StackTrace,
+                    i.HResult,
+                    i.Data,
+                    i.HelpLink
+                }), false, null, null);
             }
-            if (Context.Channel.Id != 559866304643727367)
+        }
+
+        private void AddExp(int wordCount, UserData ud)
+        {
+
+        }
+
+        public async Task AddExp(SocketCommandContext scc)
+        {
+            try
             {
-                int snapshop = user.NonLevel;
-                user.CurrentNonExp += 25;
-                user.TotalPosts++;
-                user.Pudding += 5 + (ulong)user.NonLevel / 5;
-                if (user.NonLevel != snapshop)
+                if (scc.User.IsBot)
+                    return;
+                //ExtensionMethods.WriteToLog(ExtensionMethods.LogType.CustomMessage, null, v.ToString());            
+                UserData user = ReturnPositionInList(scc.User.Id);
+                //ExtensionMethods.WriteToLog(ExtensionMethods.LogType.Debug, null, Message.Author.Id.ToString());            
+                if (user == null)
                 {
-                    user.Pudding += 2500;
-                    await GuildCommands.MessageChannel(Context, Context.User, "Non-roleplay Level", user.NonLevel.ToString());
+                    expPoints.Add(new UserData(scc.User.Id));
+                    user = expPoints[expPoints.Count - 1];
                 }
+                foreach (var p in excludeGuilds)
+                {
+                    if (scc.Guild.Id == p)
+                        return;
+                }
+                bool noExp = false;
+                foreach (var x in AllGuildData[0].excludeChannelsFromExp)
+                {
+                    if (scc.Channel.Id == x)
+                    {
+                        noExp = true;
+                        break;
+                    }
+                }
+                user.ReturnLastPosted = DateTime.Now;
+                ChannelCharacter cc = null;
+                foreach (var p in user.roleplayCharacterChannelUsage)
+                {
+                    if (scc.Channel.Id == p.ChannelId)
+                    {
+                        cc = (p.idNumber != -1) ? p : null;
+                        break;
+                    }
+                }
+                string characterExpMessage = string.Empty;
+                if (cc != null)
+                {
+                    char[] delimiters = new char[] { ' ', '\r', '\n' };
+                    var wordCount = scc.Message.Content.Split(delimiters, StringSplitOptions.RemoveEmptyEntries).Length;
+                    characterExpMessage = cc.CD(user.characterDataList).AddToExp((int)user.RPCharacterExp(wordCount));
+                }
+                if (!IsOnPlayerData(scc))
+                {
+                    _playerData.Add(new PlayerData(scc.User.Id));
+                }
+                if (IsParagraph(scc.Channel.Id) && !noExp)
+                {
+                    char[] delimiters = new char[] { ' ', '\r', '\n' };
+                    var wordCount = scc.Message.Content.Split(delimiters, StringSplitOptions.RemoveEmptyEntries).Length;
+                    int snapshot = user.ParaLevel;
+                    user.CurrentParaExp += user.ParaRPExp(wordCount);
+                    if (user.ParaLevel != snapshot)
+                    {
+                        await PromoteUser(user, 1);
+                        await GuildCommands.MessageChannel(scc, scc.User, "Paragraph Roleplay Level", $"{user.ParaLevel} (previous level: {snapshot})");
+                    }
+                    int amt = scc.Message.Content.Split(' ').Length;
+                    //$"<@{sgu.Id}> your turn to reply in <#{rpp.rpChannel}>"
+                    await GuildCommands.MessageChannel(scc, scc.User, "", "", $"**{ExtensionMethods.NameGetter(scc.User, scc.Guild)}** has gained __{user.ParaRPExp(wordCount)} " +
+                        $"exp__ from their reply in __{scc.Channel.Name}__!\n{characterExpMessage}Total word count: __{wordCount}__", 725907162412482611);
+                    return;
+                }
+
+                else if (IsCasual(scc.Channel.Id) && !noExp)
+                {
+                    char[] delimiters = new char[] { ' ', '\r', '\n' };
+                    var wordCount = scc.Message.Content.Split(delimiters, StringSplitOptions.RemoveEmptyEntries).Length;
+                    int snapshot = user.CasualLevel;
+                    user.CurrentCasualExp += user.CasualRPExp(wordCount);
+                    user.TotalPosts++;
+                    user.Pudding += 25 + (ulong)user.CasualLevel / 2;
+                    if (user.CasualLevel != snapshot)
+                    {
+                        user.Pudding += 2500;
+                        await PromoteUser(user, 0);
+                        await GuildCommands.MessageChannel(scc, scc.User, "Casual Roleplay Level", $"{user.CasualLevel} (previous level: {snapshot})");
+                    }
+                    await GuildCommands.MessageChannel(scc, scc.User, "", "", $"**{ExtensionMethods.NameGetter(scc.User, scc.Guild)}** has gained __{user.CasualRPExp(wordCount)} " +
+                        $"exp__ from their reply in __{scc.Channel.Name}__!\n{characterExpMessage}Total word count: __{wordCount}__", 725907162412482611);
+                    return;
+                }
+                if (scc.Channel.Id != 559866304643727367)
+                {
+                    int snapshot = user.NonLevel;
+                    user.CurrentNonExp += 25;
+                    user.TotalPosts++;
+                    user.Pudding += 5 + (ulong)user.NonLevel / 5;
+                    if (user.NonLevel != snapshot)
+                    {
+                        user.Pudding += 2500;
+                        await GuildCommands.MessageChannel(scc, scc.User, "Non-roleplay Level", $"{user.NonLevel} (previous level: {snapshot})");
+                    }
+                }
+            }
+            catch (Exception i)
+            {
+                await scc.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
+                {
+                    i.Message,
+                    i.TargetSite,
+                    i.Source,
+                    i.InnerException,
+                    i.StackTrace,
+                    i.HResult,
+                    i.Data,
+                    i.HelpLink
+                }));
             }
         }
 
@@ -634,8 +749,6 @@ namespace NepBot
 
         private static SocketUserMessage Message = null;
         SocketCommandContext Context = null;
-        static string word = string.Empty;
-        private UserData tData = null;
 
         private bool ThankYou(string msg)
         {
@@ -667,7 +780,7 @@ namespace NepBot
         {
             if (msg[0] != '!')
                 return false;
-            string[] prefixes = new string[] { "!nep " };
+            string[] prefixes = new string[] { "!nep ", "!strangey ", "!sam " };
             if (msg.Length <= prefixes[0].Length)
                 return false;
             StringBuilder sb = new StringBuilder();
@@ -705,105 +818,6 @@ namespace NepBot
                 totalCount += matchQuery.Count();
             }
             return totalCount;
-        }
-
-        public async Task WeeklyLoversHack(TimeSpan interval, CancellationToken cancellationToken)
-        {
-            int counter = 0;
-            foreach (var f in AllGuildData)
-            {
-                if (f.GuildId == 472551343148761090)
-                {
-                    break;
-                }
-                counter++;
-            }
-            try
-            {
-                while (true)
-                {
-                    if (AllGuildData[counter].WeeklyLoversReset)
-                    {
-                        AllGuildData[counter].weeklyLovers.AddDays(7);
-                        await PickLovers();
-                        break;
-                    }
-                }
-            }
-            catch (Exception m)
-            {
-                await Context.Client.GetGuild(472551343148761090).GetTextChannel(559866304643727367).SendMessageAsync($">>> {m.Message}\n{m.TargetSite}\n{m.Source}\n{m.InnerException}\n{m.StackTrace}\n{m.HResult}\n{m.Data}\n{m.HelpLink}");
-            }
-        }
-
-        public async Task PickLovers()
-        {
-            SocketRole sr = null;
-            try
-            {
-                var g = Context.Guild.Roles.ToList();
-                var users = Context.Guild.Users.ToList();
-                foreach (var x in users)
-                {
-                    foreach (var q in x.Roles)
-                        if (q.Id == 660938379499929601)
-                        {
-                            await x.RemoveRoleAsync(q);
-                        }
-                }
-                int snapshot = -10;
-                List<ulong> chosenMembers = new List<ulong>();
-                foreach (var x in users)
-                {
-                    bool add = true;
-                    foreach (var s in x.Roles)
-                        if (s.Id == 556268989219602442 || s.Id == 557012017773543445)
-                        {
-                            add = false;
-                            break;
-                        }
-                    if (add)
-                        chosenMembers.Add(x.Id);
-                }
-                for (int i = 0; i < 2; i++)
-                {
-                    int chooser = UtilityClass.ReturnRandom(0, chosenMembers.Count);
-                    string isChos = ChooseLover(chosenMembers[chooser], chooser == snapshot).Result;
-                    if (isChos != "ready")
-                    {
-                        i--;
-                        continue;
-                    }
-
-                    snapshot = chooser;
-                    await Context.Guild.GetUser(chosenMembers[chooser]).AddRoleAsync(Context.Guild.GetRole(660938379499929601));
-                }
-
-            }
-            catch (Exception m)
-            {
-                await Context.Channel.SendMessageAsync($">>> {m.Message}\n{m.TargetSite}\n{m.Source}\n{m.InnerException}\n{m.StackTrace}\n{m.HResult}\n{m.Data}\n{m.HelpLink}");
-            }
-        }
-
-        private async Task<string> ChooseLover(ulong chosenPerson, bool sn)
-        {
-            try
-            {
-                if (sn)
-                    return "snapshop = chooser";
-                if (Context.Guild.GetUser(chosenPerson).IsBot)
-                    return "Bot chosen";
-                foreach (ulong ul in excludePeople)
-                    if (chosenPerson == ul)
-                        return "Excluded people chosen";
-            }
-            catch (Exception m)
-            {
-                await Context.Channel.SendMessageAsync($">>> {m.Message}\n{m.TargetSite}\n{m.Source}\n{m.InnerException}\n{m.StackTrace}\n{m.HResult}\n{m.Data}\n{m.HelpLink}");
-                return "catch";
-            }
-            return "ready";
         }
 
         public async Task EmojiUse([Remainder] string Input = null)
@@ -915,20 +929,28 @@ namespace NepBot
             }
         }
 
-        StringBuilder tg = new StringBuilder();
+        private async Task Client_ExpPoints(SocketMessage MessageParam)
+        {
+            Program.Message = (SocketUserMessage)MessageParam;
+            Context = new SocketCommandContext(_client, Message);
+            if (Context.User.IsBot)
+                return;
 
-        private async Task Client_MessageReceived(SocketMessage MessageParam)
+            Program.currentGuild = Context.Guild;
+            await AddExp(Context);
+        }
+
+        private async Task Client_StringSearches(SocketMessage MessageParam)
         {
             try
             {
                 Program.Message = (SocketUserMessage)MessageParam;
                 this.Context = new SocketCommandContext(this._client, Program.Message);
-                Program.currentGuild = this.Context.Guild;
-                if (Context.User.Id == 187273824176177152 && Context.Channel.Id == 472570932498661386)
-                {
-                    Console.WriteLine(Message.Content);
-                }
 
+                if (Context.User.IsBot)
+                    return;
+                Program.currentGuild = this.Context.Guild;
+                // Handles the fanfiction sharing channel to prevent chatting.
                 if (Context.Channel.Id == 565366019368026133 && !Context.User.IsBot)
                 {
                     if (Context.Message.Attachments.Count <= 0)
@@ -942,60 +964,170 @@ namespace NepBot
                         }
                     }
                 }
-                string f = Message.Content.Split(' ')[0];
+                // Handles the thank you replies
+                if (this.ThankYou(Program.Message.Content))
+                {
+                    if (this.ThankYou(Program.Message.Content))
+                    {
+                        await this.Context.Channel.SendMessageAsync("You're welcome kiddo! I think I've earned some pudding *nudge nudge*", false, null, null);
+                    }
+                }
 
-                
+                if (cardSessions.Count > 0)
+                {
+                    UserData ud = null;
+                    foreach (var p in cardSessions)
+                    {
+                        if (p.ud.UserID == Context.User.Id)
+                        {
+                            ud = p.ud;
+                            break;
+                        }
+                    }
+                    if (ud != null)
+                    {
+                        ud.StartSession();
+                        string ct = ud.CardNameCall(Program.Message.Content);
+                        if (ct != string.Empty)
+                        {
+                            await Context.Channel.SendMessageAsync(ImgurImplement.GetImage(ct).Result, false, null, null);
+                        }
+                    }
+                }
+
+                try
+                {
+                    // Character Creation
+                    if (characterCreationSessions.Count > 0)
+                    {
+                        UserData udd = null;
+                        CreateSessions cs = null;
+                        foreach (var p in characterCreationSessions)
+                        {
+                            if (p.ud.UserID == Context.User.Id)
+                            {
+                                udd = p.ud;
+                                cs = p;
+                                break;
+                            }
+                        }
+                        if (udd != null)
+                        {
+                            if (Message.Content.Contains(cs.activation))
+                            {
+                                udd.StartCharacterCreationSession();
+                                foreach (var xx in udd.characterDataList)
+                                {
+                                    if (xx.NameOfCharacter.ToLower() == Context.Message.Content)
+                                    {
+                                        await Context.Channel.SendMessageAsync("Character name already exists.");
+                                        goto SkipProcess;
+                                    }
+                                }
+
+                                var p = await Context.Channel.SendMessageAsync(cs.temporaryStorage.Querry(Context.Message, cs, udd));
+                                cs.temporaryStorage.DeleteQueue(p);
+                                if (p.Content.Contains(":::EXCEPTIONFOUND:::>>>"))
+                                {
+                                    await Context.Channel.SendMessageAsync(p.Content);
+                                    goto SkipProcess;
+                                }
+                                if (p.Content.Contains("All set!"))
+                                {
+                                    foreach (var deleting in cs.temporaryStorage.rumList)
+                                    {
+                                        if (deleting.Content.Contains("All Set!"))
+                                            continue;
+                                        await deleting.DeleteAsync();
+                                    }
+                                    cs.temporaryStorage.characterOwnerId = Context.User.Id;
+                                    udd.characterDataList.Add(cs.temporaryStorage);
+                                    udd.characterDataList[udd.characterDataList.Count - 1].characterIdNumber = characterIDNumbers;
+                                    udd.DisableCharacterCreation();
+                                    UserData.characterIDNumbers++;
+                                    await GuildCommands.MessageChannel(Context, Context.User, "", "", $"**__{ExtensionMethods.NameGetter(Context.User, Context.Guild)}'s character__**\n\n{udd.characterDataList[udd.characterDataList.Count - 1].ReturnFullInfo(udd)}", 472557467495170048);
+                                }
+                                else if (p.Content.Contains("Deleting all information!"))
+                                {
+                                    foreach (var deleting in cs.temporaryStorage.rumList)
+                                    {
+                                        if (deleting.Content.Contains("Deleting all information!"))
+                                            continue;
+                                        await deleting.DeleteAsync();
+                                    }
+                                    cs.ud.DisableCharacterCreation();
+                                    cs.temporaryStorage.CloseSession();
+                                }
+                            }
+                        }
+                    }
+                SkipProcess:;
+
+                }
+                catch (Exception i)
+                {
+                    ExtensionMethods.WriteToLog(ExtensionMethods.LogType.ErrorLog, i);
+                }
+                // Handles the use of the gif commands.
+                bool mngMsg = this.Context.Message.Content.ToLower().Contains("!nep em") || this.Context.Message.Content.ToLower().Contains("!nep e") || this.Context.Message.Content.ToLower().Contains("!nep emoji");
+                if (mngMsg)
+                {
+                    _contextDelete = this.Context;
+                }
+                else
+                {
+                    _contextDelete = null;
+                }
+            }
+            catch (Exception i)
+            {
+                await Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
+                {
+                    i.Message,
+                    i.TargetSite,
+                    i.Source,
+                    i.InnerException,
+                    i.StackTrace,
+                    i.HResult,
+                    i.Data,
+                    i.HelpLink
+                }), false, null, null);
+            }
+        }
+
+        private async Task Client_BotCommands(SocketMessage MessageParam)
+        {
+            try
+            {
+                Program.Message = (SocketUserMessage)MessageParam;
+                this.Context = new SocketCommandContext(this._client, Program.Message);
+                Program.currentGuild = this.Context.Guild;
+
+                for(int i = 0; i < MiscBotData.channelCounters.Length; i++)
+                {
+                    if(MiscBotData.channelCounters[i].FoundChannel(Context.Channel.Id))
+                    {
+                        MiscBotData.channelCounters[i].IncrementCounter();
+                        break;
+                    }
+                }
+
+                if (miscBotData.SendActivityReport())
+                    MiscBotData.channelCounters[0].WriteToFile();
+
                 if (this.Context.Message != null && !(this.Context.Message.Content == ""))
                 {
-                    if (!this.Context.User.IsBot)
+                    int ArgPos = 0;
+                    if (this.HasMessagePrefix(Program.Message.Content.ToLower(), ref ArgPos))
                     {
-                        if (this.ThankYou(Program.Message.Content))
+                        IResult result = await this._commands.ExecuteAsync(this.Context, ArgPos, null, MultiMatchHandling.Exception);
+                        IResult Result = result;
+                        result = null;
+                        if (!Result.IsSuccess)
                         {
-                            if (this.ThankYou(Program.Message.Content))
-                            {
-                                await this.Context.Channel.SendMessageAsync("You're welcome kiddo! I think I've earned some pudding *nudge nudge*", false, null, null);
-                            }
+                            Console.WriteLine(string.Format("{0} at Commands] Something went wrong with executing a command. Text: {1} | Error: {2}", DateTime.Now, this.Context.Message.Content, Result.ErrorReason));
                         }
-                        await this.AddExp(Program.Message.Content.ToString().Length);
-                        int ArgPos = 0;
-                        if (!Program.Message.Content.Contains("!") && this.tData != null)
-                        {
-                            string ct = this.tData.CardNameCall(Program.Message.Content);
-                            if (ct != string.Empty)
-                            {
-                                await this.Context.Channel.SendMessageAsync(ImgurImplement.GetImage(ct).Result, false, null, null);
-                            }
-                            ct = null;
-                        }
-                        if (!this.HasMessagePrefix(Program.Message.Content.ToLower(), ref ArgPos))
-                        {
-                            if (Program.Message.Content[0] == '!' && !(Program.Message.Content.ToLower() == "!d bump") && Program.Message.Content[1] != ' ' && !Message.Content.ToLower().Contains("!nep"))
-                            {
-                                //string g = Program.Message.Content.Replace("!", string.Empty);
-                                //await this.Context.Message.DeleteAsync(null);
-                                //await this.EmojiUse(g);
-                            }
-                        }
-                        else
-                        {
-                            IResult result = await this._commands.ExecuteAsync(this.Context, ArgPos, null, MultiMatchHandling.Exception);
-                            IResult Result = result;
-                            result = null;
-                            bool mngMsg = this.Context.Message.Content.ToLower().Contains("!nep em") || this.Context.Message.Content.ToLower().Contains("!nep e") || this.Context.Message.Content.ToLower().Contains("!nep emoji");
-                            if (mngMsg)
-                            {
-                                Program._contextDelete = this.Context;
-                            }
-                            else
-                            {
-                                Program._contextDelete = null;
-                            }
-                            if (!Result.IsSuccess)
-                            {
-                                Console.WriteLine(string.Format("{0} at Commands] Something went wrong with executing a command. Text: {1} | Error: {2}", DateTime.Now, this.Context.Message.Content, Result.ErrorReason));
-                            }
-                            Result = null;
-                        }
+                        Result = null;
                     }
                 }
             }

@@ -347,7 +347,8 @@ namespace NepBot.Core.Commands
 
         public async Task Pat([Remainder] string Input = null)
         {
-            string[] pats = Program.DataPath("pats", "txt").Split('|');
+            string p = File.ReadAllText(Program.DataPath("pats", "txt"));
+            string[] pats = p.Split('|');
             string pick = pats[UtilityClass.ReturnRandom(0, pats.Length)];
             SocketUser name = ExtensionMethods.GetSocketUser(Input, Context, false);
             string tots = string.Format("<@{0}> pats <@{1}>!\n{2}", base.Context.User.Id, name.Id, pick);
@@ -435,8 +436,8 @@ namespace NepBot.Core.Commands
         [Summary("Posts a random slap gif. Type !nep slap (person's name)")]
         public async Task Hit([Remainder] string Input = null)
         {
-            string[] slaps = Program.DataPath("slaps", "txt").Split('|');        
-            Random rand = new Random();
+            string p = File.ReadAllText(Program.DataPath("slaps", "txt"));
+            string[] slaps = p.Split('|');
             string pick = slaps[UtilityClass.ReturnRandom(0, slaps.Length)];
             SocketUser name = ExtensionMethods.GetSocketUser(Input, Context, false);
             string tots = $"{Context.User.Id.FormatTag(TagT.user)} hits {name.Id.FormatTag(TagT.user)}!\n{pick}";
@@ -452,7 +453,7 @@ namespace NepBot.Core.Commands
         {
             string url = File.ReadAllText(Program.DataPath("nuzes", "txt"));
             SocketUser name = ExtensionMethods.GetSocketUser(Input, Context, false);
-            string tots = string.Format($"<@{0}> gives <@{1}> a big hug!\n{url}", base.Context.User.Id, name.Id);
+            string tots = $"<@{Context.User.Id}> gives <@{name.Id}> a big hug!\n{url}";
             var f = await base.Context.Channel.SendMessageAsync(tots);
             rum.Add(new ToReplace(f, tots.Replace(url, string.Empty)));
             tk = new TaskControl(EndTimer, timerDuration);
@@ -508,8 +509,8 @@ namespace NepBot.Core.Commands
                 ExtensionMethods.NameGetter(contUser, base.Context.Guild),
                 " you gain pudding at this rate (based off your level):\nNon-Roleplay channel posts: ",
                 ((ulong)(5L + (long)ud.NonLevel / 5L)).ToString(),
-                $"\nCasual Roleplay Posts: {(ulong)(25L + (long)ud.CasualLevel / 2L)}",
-                $"\nParagraph Roleplay Posts: {(ulong)(100L + (long)ud.ParaLevel * 10L)}\n",
+                $"\nCasual Roleplay Posts: {ud.CasualRPExp(0)} + word count",
+                $"\nParagraph Roleplay Posts: {ud.ParaRPExp(0)} + word count\n",
                 $"Your daily pudding gains are at **{_math.DailyPudding(ud)}** related to ALL levels gained everywhere. Casual and Paragraph roleplay levels have higher multipliers with Paragraph having the highest!\nYou also gain additional pudding like +50, +75 etc for using bot commands like the meme commands!",
                 $"The amount you can bet in games which is (25 + amount of cards owned (from the nepbot card collection game!)) * your non-RP level which is: **{_math.TotalBet(ud.NonLevel, ud)}**"));
         }
@@ -622,10 +623,7 @@ namespace NepBot.Core.Commands
             }
             catch (Exception i)
             {
-                num = 1;
-                if (num == 1)
-                {
-                    await base.Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
+                    await Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
                     {
                     i.Message,
                     i.TargetSite,
@@ -635,8 +633,7 @@ namespace NepBot.Core.Commands
                     i.HResult,
                     i.Data,
                     i.HelpLink
-                    }), false, null, null);
-                }
+                    }));
             }
         }
         /*
@@ -825,7 +822,6 @@ namespace NepBot.Core.Commands
         [Summary("Checks your profile. Experience, levels, pudding amounts, post count etc. You can check another person's profile too, just enter their name after profile!")]
         public async Task EarnExp([Remainder] string Input = null)
         {
-            int num = 0;
             try
             {
                 SocketGuildUser contUser = Context.Guild.GetUser(Context.User.Id);
@@ -876,11 +872,8 @@ namespace NepBot.Core.Commands
             }
             catch (Exception i)
             {
-                num = 1;
-                if (num == 1)
+                await base.Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
                 {
-                    await base.Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
-                    {
                     i.Message,
                     i.TargetSite,
                     i.Source,
@@ -889,8 +882,7 @@ namespace NepBot.Core.Commands
                     i.HResult,
                     i.Data,
                     i.HelpLink
-                    }), false, null, null);
-                }
+                }), false, null, null);
             }
         }
 
@@ -1042,9 +1034,14 @@ namespace NepBot.Core.Commands
                 Bitmap bitMap = null;
                 HttpClient cw = new HttpClient();
                 SocketUser User = null;
-                ulong userId = 0;
+                //ulong userId = 0;
                 string tag = string.Empty;
                 User = ExtensionMethods.GetSocketUser(splitting[0], Context, false);
+                if (User == null)
+                {
+                    await Context.Channel.SendMessageAsync("User not found on server");
+                    return;
+                }
                 try
                 {
                     Stream stream2 = await cw.GetStreamAsync(User.GetAvatarUrl(Discord.ImageFormat.Auto, 2048));
@@ -1134,7 +1131,7 @@ namespace NepBot.Core.Commands
             }
             else
             {
-                DateTime f = UserData.UsedDailyPudding.AddDays(1);
+                DateTime f = Program.miscBotData.UsedDailyPudding.AddDays(1);
                 //Console.WriteLine("f: " + f);
                 //Console.WriteLine("USED DAILY PUDDING: " + UserData.UsedDailyPudding);
                 await Context.Channel.SendMessageAsync($"NOPE! Pudding's all mine! You already had your share today... all {p} of them! You'll have to wait until {f} ~nepu");
