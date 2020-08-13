@@ -19,7 +19,6 @@ namespace NepBot.Resources.Games
         private List<ACard> _cards;
         public List<ACard> _playerHand = new List<ACard>();
         public List<ACard> _dealerHand = new List<ACard>();
-        const int _bust = 22;
         ulong _totalBet;
         bool _playerEnd = false;
         public ulong TotalBet => _totalBet;
@@ -51,9 +50,9 @@ namespace NepBot.Resources.Games
         {
             if (_playerEnd == false)
                 return 0;
-            if (Busted(PlayerTotal))
+            if (Busted(PlayerTotal, 22))
                 return 2;
-            else if (Busted(DealerTotal))
+            else if (Busted(DealerTotal, 18))
                 return 1;
             else if (PlayerTotal > DealerTotal)
                 return 1;
@@ -66,14 +65,14 @@ namespace NepBot.Resources.Games
             return 0;
         }
 
-        public bool Busted(int totalValue)
+        public bool Busted(int totalValue, int bustAmt)
         {
-            return totalValue >= _bust;
+            return totalValue >= bustAmt;
         }
 
-        private int AceChanger(List<ACard> ac)
+        private int AceChanger(List<ACard> ac, bool isDealer)
         {
-            int tot = 0;
+            int tot;
             while (true)
             {
                 tot = 0;
@@ -81,7 +80,7 @@ namespace NepBot.Resources.Games
                 {
                     tot += g.CardValue;
                 }
-                if (Busted(tot))
+                if (Busted(tot, (isDealer) ? 18 : 22))
                 {
                     tot = 0;
                     foreach (ACard f in ac)
@@ -100,7 +99,7 @@ namespace NepBot.Resources.Games
         {
             get
             {
-                return AceChanger(_playerHand);
+                return AceChanger(_playerHand, false);
             }
         }
 
@@ -108,7 +107,7 @@ namespace NepBot.Resources.Games
         {
             get
             {
-                return AceChanger(_dealerHand); ;
+                return AceChanger(_dealerHand, true);
             }
         }
 

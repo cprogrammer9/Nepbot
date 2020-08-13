@@ -93,6 +93,7 @@ namespace NepBot.Resources.Code_Implements
             ebb.AddField("Main", "Commands for making memes, check profiles and other stuff!", false);
             ebb.AddField("Games", "Games you can play with the bot such as Blackjack! (work in progress)", false);
             ebb.AddField("Simple", "Simple commands to just have fun with!", false);
+            ebb.AddField("Roleplay", "Commands for things you can do with roleplaying on the server such as creating a character.", false);
             ebb.AddField("Server", "Commands for a few things you can do with the server. Not much here right now", false);
             return ebb;
         }

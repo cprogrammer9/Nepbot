@@ -191,7 +191,8 @@ namespace ConvenienceMethods
                 graphicsPath.AddString(userName, font.FontFamily, 1, 22f, new Rectangle(rectangle.Left + num, rectangle.Top + 20, rectangle.Width, rectangle.Height), StringFormat.GenericDefault);
                 graphicsPath.AddString("Total Posts: " + userData.TotalPosts.ToString(), font.FontFamily, 1, 16f, new Rectangle(rectangle.Left + num, rectangle.Top + 50, rectangle.Width, rectangle.Height), StringFormat.GenericDefault);
                 graphicsPath.AddString("Total Pudding: " + userData.Pudding.ToString(), font.FontFamily, 1, 16f, new Rectangle(rectangle.Left + num, rectangle.Top + 250, rectangle.Width, rectangle.Height), StringFormat.GenericDefault);
-                graphicsPath.AddString("Casual Roleplay", font.FontFamily, 1, 15f, new Rectangle(rectangle.Left + num, rectangle.Top + 70, rectangle.Width, rectangle.Height), StringFormat.GenericDefault);
+                graphicsPath.AddString("Highest Word Count: " + userData.WordCountRecord.ToString(), font.FontFamily, 1, 16f, new Rectangle(rectangle.Left + num, rectangle.Top + 200, rectangle.Width, rectangle.Height), StringFormat.GenericDefault);
+                graphicsPath.AddString("Roleplay", font.FontFamily, 1, 15f, new Rectangle(rectangle.Left + num, rectangle.Top + 70, rectangle.Width, rectangle.Height), StringFormat.GenericDefault);
                 graphicsPath.AddString(string.Concat(new object[]
                 {
                     "Level: ",
@@ -202,7 +203,7 @@ namespace ConvenienceMethods
                     userData.ReqExp(userData.CasualLevel),
                     ")"
                 }), font.FontFamily, 1, 13f, new Rectangle(rectangle.Left + 280, rectangle.Top + 75, rectangle.Width, rectangle.Height), StringFormat.GenericDefault);
-                graphicsPath.AddString("Paragraph Roleplay", font.FontFamily, 1, 15f, new Rectangle(rectangle.Left + num, rectangle.Top + 110, rectangle.Width, rectangle.Height), StringFormat.GenericDefault);
+                graphicsPath.AddString("Literate Roleplay", font.FontFamily, 1, 15f, new Rectangle(rectangle.Left + num, rectangle.Top + 110, rectangle.Width, rectangle.Height), StringFormat.GenericDefault);
                 graphicsPath.AddString(string.Concat(new object[]
                 {
                     "Level: ",
@@ -347,6 +348,8 @@ namespace ConvenienceMethods
                 fontName = "Rosario";
                 divisionFucker = 25;
             }
+            if (bitmap.Width <= 125)
+                divisionFucker = 14m;
 
             //Bitmap bmm = new Bitmap(bitmap.Width, bitmap.Height);
             using (Graphics graphics = Graphics.FromImage(bitmap))

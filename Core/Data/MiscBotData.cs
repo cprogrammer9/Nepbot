@@ -68,11 +68,8 @@ namespace NepBot.Core.Data
             new ChannelCounter("channel 3 para", 472551715766403072),
             new ChannelCounter("channel 4 para", 472551737761202177),
             new ChannelCounter("channel 5 para", 472551745994620949),
-            new ChannelCounter("channel 6 para", 643264985731956766),
-            new ChannelCounter("channel 7 para", 643265020280569876),
-            new ChannelCounter("ooc", 472570224088973384),
-            new ChannelCounter("ooc2", 645487751713521664),
-            new ChannelCounter("first-person-paragraph-roleplay", 558458080547962883),
+            new ChannelCounter("ooc 3", 472570224088973384),
+            new ChannelCounter("ooc 4", 645487751713521664),
             new ChannelCounter("dnd room 1", 574126117368365066),
             new ChannelCounter("dnd room 2", 574126158484865025),
             new ChannelCounter("dnd character sheets", 574137157485068298),
@@ -82,6 +79,27 @@ namespace NepBot.Core.Data
             new ChannelCounter("streamer announcements", 617530793862103046),
         };
 
+        public object countersList;
+
+        public void PopulateCounterList()
+        {
+            List<ulong> counters = new List<ulong>();
+            foreach(var p in channelCounters)
+            {
+                counters.Add(p.ReturnCounter);
+            }
+            countersList = counters;
+        }
+
+        public void ReloadChannelList()
+        {
+            List<ulong> lu = (List<ulong>)countersList;
+            for(int i = 0; i < channelCounters.Length; i++)
+            {
+                channelCounters[i].ReturnCounter = lu[i];
+            }
+        }
+
         public bool SendActivityReport()
         {
             return DateTime.Now > channelResetCounter;
@@ -89,8 +107,7 @@ namespace NepBot.Core.Data
 
         public void AdvanceDailyDay()
         {
-            UsedDailyPudding = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day + 1, 0, 0, 0);
-            channelResetCounter = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day + 1, 0, 0, 0);
+            UsedDailyPudding = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 0, 0, 0);
         }
 
         public string ListofNotes(ulong guildID, bool admin = false)

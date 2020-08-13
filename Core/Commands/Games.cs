@@ -51,7 +51,7 @@ namespace NepBot.Core.Commands
         #endregion
 
         #region blackjack
-        [Command("Stand")]
+        [Command("stand")]
         [Summary("Keep your cards in your Blackjack game.")]
         public async Task Stand()
         {
@@ -316,7 +316,7 @@ namespace NepBot.Core.Commands
         }
         #endregion
 
-        [Command("Owned Cards")]
+        [Command("owned cards")]
         [Alias("oc")]
         [Summary("Displays all cards you own. Type the card name within 1 minute of using this command to view it. You can view other people's cards by entering their name after !nep owned cards")]
         public async Task OwnedCards([Remainder] string Input = null)

@@ -25,6 +25,11 @@ namespace NepBot.Data
         private ulong _currentParagraphExp = 0;
         private ulong _currentNonExp = 0;
         [OptionalField]
+        private ulong _wordCountHigh = 0, _channelId = 0;
+        [OptionalField]
+        [NonSerialized]
+        private ulong _wordCountGhost = 0;
+        [OptionalField]
         private ulong _pudding = 0;
         [OptionalField]
         public bool usedDaily = false;
@@ -61,7 +66,51 @@ namespace NepBot.Data
         public static int characterIDNumbers = 0;
         [OptionalField]
         public List<CharacterData> characterDataList = new List<CharacterData>();
+        [OptionalField]
+        public List<string> warningData = new List<string>();
+        [OptionalField]
+        public bool pingForInactivity = false;
+        [OptionalField]
+        [NonSerialized]
+        public bool disablePingUntilBotRestart = false;
 
+        public string ReturnWarnings
+        {
+            get
+            {
+                if (warningData == null || warningData.Count == 0)
+                    warningData = new List<string>();
+                StringBuilder sb = new StringBuilder();
+                foreach (string p in warningData)
+                {
+                    sb.Append(p).Append("\n");
+                }
+                //var x = sb.ToString().CharacterLimit().ToList();
+                return sb.ToString();
+            }
+        }
+
+        public void IssueWarning(string warningInformation)
+        {
+            if (warningData == null || warningData.Count == 0)
+                warningData = new List<string>();
+            warningData.Add(warningInformation);
+        }
+
+        public void ResetChannelCharacters()
+        {
+            roleplayCharacterChannelUsage = new List<ChannelCharacter>()
+            {
+            new ChannelCharacter(472551756656672798, "Creative Roleplay"),
+            new ChannelCharacter(472551769336184842, "Creative Roleplay"),
+            new ChannelCharacter(472551782548242442, "Creative Roleplay"),
+            new ChannelCharacter(643261156206575626, "Creative Roleplay"),
+            new ChannelCharacter(472551737761202177, "Creative Roleplay"),
+            new ChannelCharacter(643261181368205333, "Creative Roleplay"),
+            new ChannelCharacter(697568823825531011, "Creative Roleplay"),
+            new ChannelCharacter(123456789, "The Land of the Kingdoms")
+            };
+        }
 
         [Serializable]
         public class ChannelCharacter
@@ -69,6 +118,11 @@ namespace NepBot.Data
             //public CharacterData CD { get; set; } = new CharacterData();
             public int idNumber = -1;
 
+            /// <summary>
+            /// Grabs the character in the channel by its ID number.
+            /// </summary>
+            /// <param name="cdl"></param>
+            /// <returns></returns>
             public CharacterData CD(List<CharacterData> cdl)
             {
                 foreach (var p in cdl)
@@ -84,6 +138,29 @@ namespace NepBot.Data
                 ChannelId = channel;
                 CategoryName = categoryName;
             }
+        }
+
+        public bool SetNewWorldCount(ulong compare)
+        {
+            return WordCountRecord < compare;
+        }
+
+        public ulong WordCountRecordGhost
+        {
+            get { return _wordCountGhost; }
+            set { _wordCountGhost = value; }
+        }
+
+        public ulong WordCountRecord
+        {
+            get { return _wordCountHigh; }
+            set { _wordCountHigh = value; }
+        }
+
+        public ulong ChannelIdGhost
+        {
+            get { return _channelId; }
+            set { _channelId = value; }
         }
 
         public ulong RPCharacterExp(int wordCount)
@@ -212,29 +289,13 @@ namespace NepBot.Data
         /// </summary>
         public void SetValues()
         {
+            if (warningData == null || warningData.Count == 0)
+                warningData = new List<string>();
             if (roleplayCharacterChannelUsage == null)
-                roleplayCharacterChannelUsage = new List<ChannelCharacter>()
-        {
-            //Casual Channels
-            new ChannelCharacter(472551756656672798, "Casual Roleplay"),
-            new ChannelCharacter(472551762990071828, "Casual Roleplay"),
-            new ChannelCharacter(472551769336184842, "Casual Roleplay"),
-            new ChannelCharacter(472551775178850310, "Casual Roleplay"),
-            new ChannelCharacter(472551782548242442, "Casual Roleplay"),
-            new ChannelCharacter(643261156206575626, "Casual Roleplay"),
-            new ChannelCharacter(643261181368205333, "Casual Roleplay"),
-            new ChannelCharacter(697568823825531011, "Casual Roleplay"),
-            new ChannelCharacter(558458110168137748, "Casual Roleplay"),
-            //Para Channels
-            new ChannelCharacter(472551695432286240, "Paragraph Roleplay"),
-            new ChannelCharacter(472551726910668800, "Paragraph Roleplay"),
-            new ChannelCharacter(472551715766403072, "Paragraph Roleplay"),
-            new ChannelCharacter(472551737761202177, "Paragraph Roleplay"),
-            new ChannelCharacter(472551745994620949, "Paragraph Roleplay"),
-            new ChannelCharacter(643264985731956766, "Paragraph Roleplay"),
-            new ChannelCharacter(643265020280569876, "Paragraph Roleplay"),
-            new ChannelCharacter(558458080547962883, "Paragraph Roleplay")
-        };
+                ResetChannelCharacters();
+            paraGhost = ParaLevel;
+            casualGhost = CasualLevel;
+            nonGhost = NonLevel;
             if (characterDataList == null)
                 characterDataList = new List<CharacterData>();
             onlyOwned = new List<CardTypes>();
@@ -249,6 +310,21 @@ namespace NepBot.Data
                 if (g == -1)
                     continue;
                 onlyOwned.Add(CharacterCards.allCards[g]);
+            }
+            RefreshCardValueData();
+            characterIDNumbers += characterDataList.Count;
+        }
+
+        private void RefreshCardValueData()
+        {
+            _c = 0;
+            _r = 0;
+            _sr = 0;
+            _ssr = 0;
+            foreach (int g in ownedCards)
+            {
+                if (g == -1)
+                    continue;
                 if (CharacterCards.allCards[g]._cardType == CharacterCards.Type.c)
                     _c++;
                 else if (CharacterCards.allCards[g]._cardType == CharacterCards.Type.r)
@@ -258,7 +334,6 @@ namespace NepBot.Data
                 else if (CharacterCards.allCards[g]._cardType == CharacterCards.Type.ssr)
                     _ssr += 3;
             }
-            characterIDNumbers += characterDataList.Count;
         }
 
         public string CardNameCall(string comparison)
@@ -273,7 +348,7 @@ namespace NepBot.Data
 
         public void StartSession()
         {
-            _sessionTimer = new Timer(60000);
+            _sessionTimer = new Timer(new TimeSpan(0,1,0).TotalMilliseconds);
             _sessionTimer.Elapsed += new ElapsedEventHandler(EndSession);
             _sessionTimer.AutoReset = true;
             _sessionTimer.Enabled = true;
@@ -321,6 +396,7 @@ namespace NepBot.Data
                 if (ownedCards[num] == num)
                     return false;
                 ownedCards[num] = num;
+                RefreshCardValueData();
                 onlyOwned.Add(CharacterCards.allCards[num]);
                 return true;
             }
@@ -382,7 +458,7 @@ namespace NepBot.Data
             if (DateTime.Now.Day != Program.miscBotData.UsedDailyPudding.Day)
             {
                 ResetDailies();
-                Program.miscBotData.UsedDailyPudding = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 0, 0, 0);
+                Program.miscBotData.AdvanceDailyDay();
             }
             if (!usedDaily)
             {
@@ -419,29 +495,10 @@ namespace NepBot.Data
         public UserData(ulong _userID)
         {
             this.UserID = _userID;
+            if (warningData == null || warningData.Count == 0)
+                warningData = new List<string>();
             if (roleplayCharacterChannelUsage == null)
-                roleplayCharacterChannelUsage = new List<ChannelCharacter>()
-        {
-            //Casual Channels
-            new ChannelCharacter(472551756656672798, "Casual Roleplay"),
-            new ChannelCharacter(472551762990071828, "Casual Roleplay"),
-            new ChannelCharacter(472551769336184842, "Casual Roleplay"),
-            new ChannelCharacter(472551775178850310, "Casual Roleplay"),
-            new ChannelCharacter(472551782548242442, "Casual Roleplay"),
-            new ChannelCharacter(643261156206575626, "Casual Roleplay"),
-            new ChannelCharacter(643261181368205333, "Casual Roleplay"),
-            new ChannelCharacter(697568823825531011, "Casual Roleplay"),
-            new ChannelCharacter(558458110168137748, "Casual Roleplay"),
-            //Para Channels
-            new ChannelCharacter(472551695432286240, "Paragraph Roleplay"),
-            new ChannelCharacter(472551726910668800, "Paragraph Roleplay"),
-            new ChannelCharacter(472551715766403072, "Paragraph Roleplay"),
-            new ChannelCharacter(472551737761202177, "Paragraph Roleplay"),
-            new ChannelCharacter(472551745994620949, "Paragraph Roleplay"),
-            new ChannelCharacter(643264985731956766, "Paragraph Roleplay"),
-            new ChannelCharacter(643265020280569876, "Paragraph Roleplay"),
-            new ChannelCharacter(558458080547962883, "Paragraph Roleplay")
-        };
+                ResetChannelCharacters();
             if (characterDataList == null)
                 characterDataList = new List<CharacterData>();
         }
@@ -493,18 +550,107 @@ namespace NepBot.Data
             }
         }
 
-        public string GainExp(string words)
-        {
-            string sb = string.Empty;
-            char[] delimiters = new char[] { ' ', '\r', '\n' };
-            int wordCount = words.Split(delimiters, StringSplitOptions.RemoveEmptyEntries).Length;
+        [OptionalField]
+        [NonSerialized]
+        int casualGhost = 1;
+        [OptionalField]
+        [NonSerialized]
+        int paraGhost = 1;
+        [OptionalField]
+        [NonSerialized]
+        int nonGhost = 1;
 
-            if(wordCount >= 250)
+        public string LevelupMessage(SocketCommandContext scc)
+        {
+            string msg = string.Empty;
+            string GetUsername;
+            if (nonGhost != NonLevel)
             {
-                PuddingGainsPerPost(100 + (ulong)ParaLevel * 10);
+                GetUsername = ExtensionMethods.GetUsersName(UserID.ToString(), scc);
+                msg = $"{GetUsername} has reached Non-roleplay level {NonLevel} YAY! Pudding for everyone!! " +
+                    $"I'm gonna give you *{2500 * (NonLevel - nonGhost)}* pudding per level gained... *gulp* y - yes... {2500 * (NonLevel - nonGhost)}...";
+                nonGhost = NonLevel;
+                return msg;
             }
 
-            return sb;
+            if (casualGhost != CasualLevel)
+            {
+                GetUsername = ExtensionMethods.GetUsersName(UserID.ToString(), scc);
+                msg = $"{GetUsername} has reached Roleplaying level {CasualLevel} YAY! Pudding for everyone!! " +
+                    $"I'm gonna give you *{2500 * (CasualLevel - casualGhost)}* pudding per level gained... *gulp* y - yes... {2500 * (CasualLevel - casualGhost)}...";
+                if (paraGhost != ParaLevel)
+                {
+                    msg = string.Concat(msg, $"\nLiterate Roleplay leveled up to {ParaLevel} too! {10000 * (ParaLevel - paraGhost)} pudding gained!");
+                    paraGhost = ParaLevel;
+                }
+                casualGhost = CasualLevel;
+                return msg;
+            }
+
+            if (paraGhost != ParaLevel)
+            {
+                GetUsername = ExtensionMethods.GetUsersName(UserID.ToString(), scc);
+                msg = $"{GetUsername} has reached Literate Roleplaying level {ParaLevel} YAY! Pudding for everyone!! " +
+                    $"I'm gonna give you *{10000 * (ParaLevel - paraGhost)}* pudding per level gained... *gulp* y - yes... {10000 * (ParaLevel - paraGhost)}...";
+                paraGhost = ParaLevel;
+                return msg;
+            }
+
+            return msg;
+        }
+
+        /// <summary>
+        /// Gain exp the proper way. It prints out 2 strings. One to adjust if para exp was earned and one normal to post to the exp channel.
+        /// </summary>
+        /// <param name="words"></param>
+        /// <returns></returns>
+        public string GainExp(SocketCommandContext scc, int wordCount, string characterExpMessage, bool rpExpBool)
+        {
+            try
+            {
+                if (!rpExpBool)
+                {
+                    nonGhost = NonLevel;
+                    ulong p = (ulong)Math.Ceiling(25 + (25 * (OwnedCards * .01m)));
+                    CurrentNonExp += p;
+                    return string.Empty;
+                }
+
+                ulong gainParaExp = (wordCount >= 250) ? ParaRPExp(wordCount) : 0;
+                ulong gainCasualExp = CasualRPExp(wordCount);
+
+                casualGhost = CasualLevel;
+                CurrentCasualExp += gainCasualExp;
+                PuddingGainsPerPost(25 + (ulong)CasualLevel / 2);
+
+                if (wordCount >= 250)
+                {
+                    PuddingGainsPerPost(100 + (ulong)ParaLevel * 10);
+                    paraGhost = ParaLevel;
+                    CurrentParaExp += gainParaExp;
+                }
+
+                string sb = $"**{ExtensionMethods.NameGetter(scc.User, scc.Guild)}** has gained __{gainCasualExp} exp__ from their reply in " +
+                    $"__{scc.Channel.Name}__!{characterExpMessage} Total word count: __{wordCount}__" +
+                    $"\n{gainParaExp} Literate Roleplay exp earned. (250 words or more to earn lit rp exp)";
+
+                return sb;
+            }
+            catch (Exception i)
+            {
+                Console.WriteLine(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
+                {
+                    i.Message,
+                    i.TargetSite,
+                    i.Source,
+                    i.InnerException,
+                    i.StackTrace,
+                    i.HResult,
+                    i.Data,
+                    i.HelpLink
+                }));
+            }
+            return string.Empty;
         }
 
         private void PuddingGainsPerPost(ulong val)
@@ -517,26 +663,17 @@ namespace NepBot.Data
             get { return _currentParagraphExp; }
             set
             {
-                decimal p = _currentParagraphExp;
-                p = value;
-                if (p < 0)
-                {
-                    Console.WriteLine($"Current Para Exp became negative. Check your math. Value: {value}, Current Para Exp: {_currentParagraphExp}");
-                    p = 0;
-                }
-                _currentParagraphExp = (ulong)p;
-                //TotalPosts++;
-                Pudding += (ulong)(100 + ParaLevel * 10);
+                //var tester = value;
+                // if (tester.ToString().Length >= ulong.MaxValue.ToString().Length - 3)
+                //     _currentParagraphExp = 0;
+                // else
+                _currentParagraphExp = value;
                 while (_currentParagraphExp >= ReqExp(ParaLevel))
                 {
-                    ulong ce = _currentParagraphExp - ReqExp(ParaLevel);
                     _currentParagraphExp -= ReqExp(ParaLevel);
                     ParaLevel++;
-                    CurrentParaExp += ce;
-                    Pudding += 2500;
+                    Pudding += 10000;
                 }
-                CurrentParaExp += _currentParagraphExp;
-                //TotalPosts++;
             }
         }
 
@@ -545,44 +682,39 @@ namespace NepBot.Data
             get { return _currentNonExp; }
             set
             {
-                _currentNonExp = value;
-                if (_currentNonExp < 0)
+                var tester = value;
+                if (tester.ToString().Length >= ulong.MaxValue.ToString().Length - 3)
                     _currentNonExp = 0;
+                else
+                    _currentNonExp = value;
                 TotalPosts++;
                 Pudding += (ulong)(5 + NonLevel / 5);
                 while (_currentNonExp >= ReqExp(NonLevel))
                 {
-                    ulong ce = _currentNonExp - ReqExp(NonLevel);
                     _currentNonExp -= ReqExp(NonLevel);
                     NonLevel++;
-                    CurrentNonExp += ce;
                     Pudding += 2500;
                 }
-                CurrentNonExp += _currentNonExp;
-                //TotalPosts++;
             }
         }
 
         public ulong CurrentCasualExp
         {
+
             get { return _currentCasualExp; }
             set
             {
-                _currentCasualExp = value;
-                if (_currentCasualExp < 0)
+                var tester = value;
+                if (tester.ToString().Length >= ulong.MaxValue.ToString().Length - 3)
                     _currentCasualExp = 0;
-                TotalPosts++;
-                Pudding += (ulong)(25 + CasualLevel / 2);
+                else
+                    _currentCasualExp = value;
                 while (_currentCasualExp >= ReqExp(CasualLevel))
                 {
-                    ulong ce = _currentCasualExp - ReqExp(CasualLevel);// level * 500
                     _currentCasualExp -= ReqExp(CasualLevel);
                     CasualLevel++;
-                    CurrentCasualExp += ce;
                     Pudding += 2500;
                 }
-                CurrentCasualExp += _currentCasualExp;
-                //TotalPosts++;
             }
         }
 
@@ -606,23 +738,6 @@ namespace NepBot.Data
                     break;
             }
             return false;
-        }
-
-        public enum TypesOfExp { Casual, Paragraph, Non }
-        public void GainExp(TypesOfExp typesOfExp, ulong amt)
-        {
-            switch (typesOfExp)
-            {
-                case TypesOfExp.Casual:
-                    CurrentCasualExp += amt;
-                    break;
-                case TypesOfExp.Paragraph:
-                    CurrentParaExp += amt;
-                    break;
-                case TypesOfExp.Non:
-                    CurrentNonExp += amt;
-                    break;
-            }
         }
 
         public ulong ReqExp(int level)

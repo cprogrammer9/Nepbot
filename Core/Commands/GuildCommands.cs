@@ -33,6 +33,38 @@ namespace NepBot.Core.Commands
         string messages = string.Empty;
         static Timer t;
 
+        [Command("Current Activity")]
+        [Summary("Prints out current server activity")]
+        public async Task CurrentActivity()
+        {
+            await Context.Channel.SendMessageAsync(ChannelCounter.PrintCurrent());
+        }
+
+        [Command("Delete Links")]
+        [Alias("Delete Invite Links", "DIL", "Remove Links", "Remove Invite Links", "DeleteLinks", "RemoveLinks")]
+
+        public async Task DeleteLinks()
+        {
+            bool hasRole = false;
+            ulong[] roles = new ulong[] { 472552616753364998, 733766798851309618, 732233733788401686, 733766796351635701, 682766159027896508, 472552681374744578 };
+            foreach (var p in Context.Guild.GetUser(Context.User.Id).Roles)
+            {                
+                foreach (ulong x in roles)
+                    if (p.Id == x)
+                    {
+                        hasRole = true;
+                        break;
+                    }
+            }
+            if (!hasRole)
+                return;
+            var c = Context.Guild.GetInvitesAsync().Result.ToList();
+            for(int i = 0; i < c.Count; i++)
+            {
+                await c[i].DeleteAsync();
+            }
+        }
+
         [Command("Rename Channel")]
         [Summary("Any roleplayer can use this to rename a roleplay channel. Type !nep rename channel (channel name)|(new name). Don't use this to troll or I'll ban you from using the command.")]
         public async Task RenameChannel([Remainder] string Input = null)
@@ -137,17 +169,25 @@ namespace NepBot.Core.Commands
 
         public static List<TaskControl> AddTaskControl { get; set; } = new List<TaskControl>();
 
-        public async static Task MessageChannel(SocketCommandContext scc, SocketUser sgu, string lvlName, string levelNumber, string customMsg = null, ulong channelID = 0)
+        /// <summary>
+        /// Make customMsg string.Empty if you want it to not write a message.
+        /// </summary>
+        /// <param name="scc"></param>
+        /// <param name="customMsg"></param>
+        /// <param name="channelID"></param>
+        /// <returns></returns>
+        public async static Task MessageChannel(SocketGuild scc, string customMsg, ulong channelID = 0)
         {
+            if (customMsg == string.Empty)
+                return;
             try
             {
                 if (customMsg != null && channelID != 0)
                 {
-                    await scc.Guild.GetTextChannel(channelID).SendMessageAsync(customMsg);
+                    await scc.GetTextChannel(channelID).SendMessageAsync(customMsg);
                     return;
                 }
-                string puddingValue = (lvlName == "Paragraph Roleplay Level") ? "5000" : "2500";
-                IUserMessage m = await scc.Channel.SendMessageAsync($"{ExtensionMethods.NameGetter(sgu, scc.Guild)} has reached {lvlName} {levelNumber} YAY! Pudding for everyone!! I'm gonna give you {puddingValue} pudding per level gained... *gulp* y-yes... {puddingValue}...");
+                IUserMessage m = await scc.GetTextChannel(474802733438861312).SendMessageAsync(customMsg);
                 AddTaskControl.Add(new TaskControl(null, 25000, false));
                 AddTaskControl[AddTaskControl.Count - 1].AddDeletion(m);
                 //await Task.Delay(25000);

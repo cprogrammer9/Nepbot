@@ -23,7 +23,7 @@ using System.Timers;
 namespace NepBot.Resources
 {
     /// <summary>
-    /// For controlling anything in code that requires a one off delay rather than using Task.Delay. Can be fun indefinitely if needed.
+    /// For controlling anything in code that requires a one off delay rather than using Task.Delay. Can be run indefinitely if needed.
     /// </summary>
     public class TaskControl
     {

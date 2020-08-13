@@ -49,6 +49,7 @@ namespace NepBot.Resources.Database
 			this.monikaImages = this.MonikaImages();
 			memeStorage.Add(new MemeStorage(8, .34f, 584, 393, $@"{Program.DataPath(@"Meme Image Placeovers\8dd", "png")}", "catdogmouse"));
 			memeStorage.Add(new MemeStorage(8, .05f, 800, 900, $@"{Program.DataPath(@"Meme Image Placeovers\monikapoint", "png")}", "monikapoint"));
+			memeStorage.Add(new MemeStorage(-1, .001f, 1000, 647, $@"{Program.DataPath(@"Meme Image Placeovers\mathwtf", "jpg")}", "mathwtf"));
 		}
 	}
 }

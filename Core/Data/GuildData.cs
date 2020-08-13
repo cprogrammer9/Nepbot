@@ -23,6 +23,35 @@ namespace NepBot.Data
 
         public List<ulong> excludeChannelsFromExp;
 
+        [OptionalField]
+        public List<MutePeople> mutedPeople = new List<MutePeople>();
+
+        [OptionalField]
+
+        public bool enableAutoInviteDeletions = false;
+
+        [Serializable]
+        public struct MutePeople
+        {
+            private readonly DateTime timeMuted;
+            private readonly DateTime duration;
+            public readonly ulong userId;
+            public readonly ulong[] roleIds;
+            
+            public bool Unmute
+            {
+                get { return DateTime.Now >= duration; }
+            }
+
+            public MutePeople(DateTime timeMuted, DateTime duration, ulong userId, ulong[] roleIds)
+            {
+                this.timeMuted = timeMuted;
+                this.duration = duration;
+                this.userId = userId;
+                this.roleIds = roleIds;
+            }
+        }
+
         public void SetData()
         {
             excludeChannelsFromExp = new List<ulong>()
@@ -30,8 +59,8 @@ namespace NepBot.Data
                   645487751713521664,
                   472570224088973384,
                   645487693266157588,
-                  472570210180923412,
-                  574474515854262272,
+                  472570210180923412,//697568823825531011
+                  574474515854262272,//645487693266157588
                   574137157485068298,
                   559866304643727367
              };

@@ -11,12 +11,36 @@ using NepBot.Data;
 using Discord.Commands;
 using Discord;
 using Discord.Rest;
+using System.Text;
 
 namespace NepBot.Resources.Extensions
 {
     public static class ExtensionMethods
     {
         public enum TagT { role, user, channel }
+
+        public static string[] CharacterLimit(this string input)
+        {
+            var str = input.ToCharArray();
+            StringBuilder sb = new StringBuilder();
+            List<string> ls = new List<string>();
+            if (str.Length < 1850)
+            {
+                ls.Add(input);
+                return ls.ToArray();
+            }
+            for (int i = 0; i < str.Length; i++)
+            {
+                sb.Append(str[i]);
+                if (sb.ToString().Length >= 1850 && (str[i] == ' ' || str[i] == '\n'))
+                {
+                    ls.Add(sb.ToString());
+                    sb = new StringBuilder();
+                }
+            }
+            ls.Add(sb.ToString());
+            return ls.ToArray();
+        }
 
         public static string FormatTag(this ulong f, TagT tagType)
         {
@@ -62,17 +86,17 @@ namespace NepBot.Resources.Extensions
             return ff;
         }
 
-        public static void TextToImage(List<string> splitting, ref Bitmap bitMap, ref MemoryStream stream)
+        public static void TextToImage(List<string> splitting, ref Bitmap bitMap, ref MemoryStream stream, bool hasAttachment)
         {
             GraphicsMethods gr = new GraphicsMethods();
-            for (int i = 1; i < splitting.Count; i++)
+            for (int i = (!hasAttachment) ? 1 : 0; i < splitting.Count; i++)
             {
                 if (i >= 3)
                     break;
-                bitMap = gr.InsertTextOnImage("Impact", 150f, bitMap, splitting[i], i > 1, false);
+                bitMap = gr.InsertTextOnImage("Impact", 150f, bitMap, splitting[i], (hasAttachment) ? i > 0 : i > 1, false);
             }
             bitMap.Save(stream, bitMap.RawFormat);
-            stream.Seek(0L, SeekOrigin.Begin);
+            stream.Position = 0;
         }
 
         public static string RemoveTagCharacters(this string bas)
@@ -87,6 +111,14 @@ namespace NepBot.Resources.Extensions
 
         public static string[] GenericSplit(string txt, params string[] splitter)
         {
+            //https://media.discordapp.net/attachments/474802733438861312/733210441446195250/Screen_Shot_2020-07-16_at_2.04.55_AM.png?width=149&height=678
+            if (txt.Contains("discordapp") && txt.Contains("?"))
+            {
+                var p = txt.Split('?');
+                txt = txt.Replace(p[1], string.Empty);
+            }
+            if (txt == null)
+                return null;
             string[] txtSplit = txt.Split(splitter, StringSplitOptions.None);
             txtSplit[0] = txtSplit[0].RemoveTagCharacters();
             return txtSplit;
@@ -240,13 +272,13 @@ namespace NepBot.Resources.Extensions
                 bool flag2 = !string.IsNullOrEmpty(socketGuildUser.Nickname) || !string.IsNullOrWhiteSpace(socketGuildUser.Nickname);
                 if (flag2)
                 {
-                    bool flag3 = socketGuildUser.Nickname.Contains(username);
+                    bool flag3 = socketGuildUser.Nickname.ToLower().Contains(username);
                     if (flag3)
                     {
                         return socketGuildUser.Id;
                     }
                 }
-                bool flag4 = socketGuildUser.Username.Contains(username);
+                bool flag4 = socketGuildUser.Username.ToLower().Contains(username);
                 if (flag4)
                 {
                     return socketGuildUser.Id;
@@ -255,6 +287,13 @@ namespace NepBot.Resources.Extensions
             return 0;
         }
 
+        /// <summary>
+        /// Used to get the user's name based on their ID number when being tagged. Can also tostring a ulong from userdata to get their ID as well.
+        /// </summary>
+        /// <param name="username"></param>
+        /// <param name="context"></param>
+        /// <param name="requireExactName"></param>
+        /// <returns></returns>
         public static string GetUsersName(string username, SocketCommandContext context, bool requireExactName = false)
         {
             try
@@ -285,6 +324,7 @@ namespace NepBot.Resources.Extensions
                 IReadOnlyCollection<SocketGuildUser> f = context.Guild.Users;
                 List<SocketGuildUser> matchesFound = new List<SocketGuildUser>();
                 username = username.RemoveTagCharacters().ToLower();
+                username = username.Replace("~", string.Empty);
                 ulong isId = 0;
                 if (ulong.TryParse(username, out isId))
                 {

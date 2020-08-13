@@ -1,10 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
+using Discord.Rest;
 using Discord.WebSocket;
 using NepBot.Data;
 using NepBot.Resources.Database;
@@ -15,7 +20,288 @@ namespace NepBot.Core.Commands
     public class SimpleCommands : ModuleBase<SocketCommandContext>
     {
         private readonly ImageData _imageData = new ImageData();
-        private static List<string> urlList = Program.DataPath("GiantUrlList", "txt").Split('|').ToList();
+        private static List<string> urlList = File.ReadAllText(Program.DataPath("GiantUrlList", "txt")).Split('|').ToList();
+
+        [Command("random anime image")]
+        [Alias("rai", "random anime", "random image", "anime image", "ai")]
+        [Summary("Grabs a random image from Safebooru and posts it to chat")]
+
+        public async Task RandomAI([Remainder] string Input = null)
+        {
+            var myClient = new WebClient();
+            var response = myClient.DownloadStringTaskAsync("https://safebooru.org/index.php?page=post&s=random").Result;
+            var charArray = response.ToCharArray();
+            StringBuilder sb = new StringBuilder();
+            string searchTerm = "<meta property=\"og:image\" itemprop=\"image\" content=";
+            int length = "\"https://safebooru.org//images/511/14532ea3c5ab53eedf99f2327cfe97e4e5b052b2.jpg\" />".Length + searchTerm.Length;
+            bool buildUrl = false;
+            try
+            {
+            errorFound:;
+                for (int i = 0; i < charArray.Length - 25; i++)
+                {
+                    if (!buildUrl)
+                    {
+                        for (int lengthTerm = 0; lengthTerm < searchTerm.Length; lengthTerm++)
+                            sb.Append($"{charArray[i + lengthTerm]}");
+                        if (sb.ToString() == searchTerm)
+                        {
+                            buildUrl = true;
+                        }
+                        sb = new StringBuilder();
+                    }
+                    if (buildUrl)
+                    {
+                        sb.Append(charArray[i]);
+                        if (sb.Length >= length)
+                            break;
+                        continue;
+                    }
+                    sb = new StringBuilder();
+                }               
+                if (sb.ToString().Length == 0)
+                {
+                    length++;
+                    goto errorFound;
+                }
+                string v = sb.ToString();
+                v = v.Replace(searchTerm, string.Empty);
+                v = v.Replace("\"", string.Empty);
+                v = v.Replace(" /", string.Empty);
+                v = v.Replace(">", string.Empty);
+                v = v.Replace(" <div", string.Empty);
+                v = v.Replace("<div", string.Empty);
+                v = v.Replace("\n<div", string.Empty);
+                sb = new StringBuilder(v);
+                HttpClient cw = new HttpClient();
+                Stream stream2 = await cw.GetStreamAsync(sb.ToString());
+                MemoryStream ms = new MemoryStream();
+                stream2.CopyTo(ms);
+                stream2.Close();
+                Bitmap bitMap = (Bitmap)System.Drawing.Image.FromStream(ms);
+                ms.Position = 0;
+                if (Input != null)
+                {
+                    ms = new MemoryStream();
+                    List<string> blankList = new List<string>();
+                    var splitter = ExtensionMethods.GenericSplit(Input, "&", "|");
+                    blankList.Add("");
+                    blankList.Add(splitter[0]);
+                    if (splitter.Length > 1)
+                        blankList.Add(splitter[1]);
+                    ExtensionMethods.TextToImage(blankList, ref bitMap, ref ms, false);
+                    ms.Position = 0;
+                }
+                //await Context.Channel.SendMessageAsync($"URL: <{v}>");
+                string tag = (!v.Contains("gif")) ? bitMap.ImageFormatType().ToString().ToLower() : "gif";
+                await Context.Channel.SendFileAsync(ms, $"Pudding.{tag}", "Pudding Delivery!~Nepu", false, null, null);
+                bitMap.Dispose();
+                ms.Close();
+                cw.Dispose();
+            }
+            catch (Exception i)
+            {
+                await Context.Channel.SendMessageAsync(sb.ToString());
+            }
+        }
+
+        [Command("promote me")]
+        [Summary("Gives you your deserved roleplay role based on your level if the bot didn't do it automatically")]
+
+        private async Task PromoteUser()
+        {
+            try
+            {
+                if (Context.Guild.Id != Program.myGuildId)
+                    return;
+                UserData ud = ExtensionMethods.FindPerson(Context.User.Id);
+                int arrayIndex = ud.CasualLevel / 10; // automatically finds the array index based on the server's level guaranteed to find their maximum deserved role
+                for (int i = arrayIndex; i > 0; i--)
+                {
+                    if (Program.casualLevels[i].roleNumber == 0)
+                    {
+                        continue;
+                    }
+                    await Context.Guild.GetUser(ud.UserID).AddRoleAsync(Context.Guild.GetRole(Program.casualLevels[i].roleNumber));
+                }
+                arrayIndex = ud.ParaLevel / 10; // automatically finds the array index based on the server's level guaranteed to find their maximum deserved role
+                for (int i = arrayIndex; i > 0; i--)
+                {
+                    if (Program.paraLevels[i].roleNumber == 0)
+                    {
+                        continue;
+                    }
+                    await Context.Guild.GetUser(ud.UserID).AddRoleAsync(Context.Guild.GetRole(Program.paraLevels[i].roleNumber));
+                }
+                arrayIndex = ud.NonLevel / 10;
+                for (int i = arrayIndex; i > 0; i--)
+                {
+                    if (Program.nonLevels[i].roleNumber == 0)
+                    {
+                        continue;
+                    }
+                    await Context.Guild.GetUser(ud.UserID).AddRoleAsync(Context.Guild.GetRole(Program.nonLevels[i].roleNumber));
+                }
+            }
+            catch (Exception i)
+            {
+                await Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
+                {
+                    i.Message,
+                    i.TargetSite,
+                    i.Source,
+                    i.InnerException,
+                    i.StackTrace,
+                    i.HResult,
+                    i.Data,
+                    i.HelpLink
+                }), false, null, null);
+            }
+        }
+
+        [Command("Random Profile Pic")]
+        [Alias("RandomProfilePic", "RandomProfilePicture", "Random Profile Picture", "rpp", "r p p")]
+        [Summary("Posts the profile picture of a random user. You can add a top and bottom caption if you want !nep rpp (top text)&(bottom text). Or just !nep rpp for no caption.")]
+
+        public async Task RPP([Remainder] string Input = null)
+        {
+            try
+            {
+                SocketGuildUser User = Context.Guild.Users.ToList()[UtilityClass.ReturnRandom(0, Context.Guild.Users.Count)];
+                Stream response = null;
+                Bitmap bitMap = null;
+                HttpClient cw = new HttpClient();
+                string tag = string.Empty;
+                string defaultToYou = string.Empty;
+                try
+                {
+                    string pic = User.GetAvatarUrl(Discord.ImageFormat.Auto, 2048);
+                    Stream stream2 = await cw.GetStreamAsync(pic);
+                    response = stream2;
+                    MemoryStream streamtest = new MemoryStream();
+                    response.CopyTo(streamtest);
+                    streamtest.Position = 0;
+                    bitMap = (Bitmap)System.Drawing.Image.FromStream(streamtest);
+                    tag = (!pic.Contains("gif")) ? bitMap.ImageFormatType().ToString().ToLower() : "gif";
+                    streamtest.Close();
+                    stream2.Close();
+                    response.Close();
+                    MemoryStream stream = new MemoryStream();
+                    List<string> blankList = new List<string>();
+                    if (Input != null)
+                    {
+                        var splitter = ExtensionMethods.GenericSplit(Input, "&", "|");
+                        blankList.Add("");
+                        blankList.Add(splitter[0]);
+                        if (splitter.Length > 1)
+                            blankList.Add(splitter[1]);
+                    }
+                    ExtensionMethods.TextToImage(blankList, ref bitMap, ref stream, Context.Message.Attachments.Count > 0);
+                    string aRand = "A random profile pic!";
+                    aRand += (blankList.Count == 0) ? "" : " With captions!";
+                    SocketUser contUser = base.Context.User;
+                    UserData ud = ExtensionMethods.FindPerson(contUser.Id);
+                    string userName = (string.IsNullOrEmpty(User.Nickname) || string.IsNullOrWhiteSpace(User.Nickname)) ? User.Username : User.Nickname;
+                    ud.Pudding += 50UL;
+                    await base.Context.Channel.SendFileAsync(stream, $"Pudding.{tag}", $"Pudding Delivery!~Nepu\n{aRand}! It's {userName}'s profile picture!", false, null, null);
+                    stream.Close();
+                    bitMap.Dispose();
+                }
+                catch (Exception j)
+                {
+                    string mainMsg = string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}", new object[]
+                    {
+                                j.Message,
+                                j.TargetSite,
+                                j.Source,
+                                j.InnerException,
+                                j.StackTrace,
+                                j.HResult
+                    });
+                    ExtensionMethods.WriteToLog(ExtensionMethods.LogType.ErrorLog, j, "CPP problem");
+                    await base.Context.Channel.SendMessageAsync(mainMsg, false, null, null);
+                }
+            }
+
+            catch (Exception j)
+            {
+                string mainMsg = string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}", new object[]
+                {
+                                j.Message,
+                                j.TargetSite,
+                                j.Source,
+                                j.InnerException,
+                                j.StackTrace,
+                                j.HResult
+                });
+                ExtensionMethods.WriteToLog(ExtensionMethods.LogType.ErrorLog, j, "CPP problem");
+                await base.Context.Channel.SendMessageAsync(mainMsg, false, null, null);
+            }
+        }
+
+        [Command("youtube")]
+        [Summary("Performs a youtube search and grabs the first video on the list. Try to be specific in your search for maximum efficiency.")]
+        public async Task Youtube([Remainder] string Input = null)
+        {
+            var myClient = new WebClient();
+            Input = Input.Replace(' ', '+');
+            string response = myClient.DownloadString($"https://www.youtube.com/results?search_query={Input}");
+            var charArray = response.ToCharArray();
+            StringBuilder sb = new StringBuilder();
+            string searchTerm = "/watch?v=";
+            int length = "/watch?v=TKTIfXTd32M".Length;
+            bool buildUrl = false;
+            for (int i = 0; i < charArray.Length - 13; i++)
+            {
+                if (!buildUrl)
+                {
+                    for (int lengthTerm = 0; lengthTerm < searchTerm.Length; lengthTerm++)
+                        sb.Append($"{charArray[i + lengthTerm]}");
+                    //sb.Append($"{charArray[i]}{charArray[i + 1]}{charArray[i + 2]}{charArray[i + 3]}{charArray[i + 4]}{charArray[i + 5]}{charArray[i + 6]}{charArray[i + 7]}{charArray[i + 8]}");
+                    if (sb.ToString() == searchTerm)
+                    {
+                        buildUrl = true;
+                    }
+                    sb = new StringBuilder();
+                }
+                if (buildUrl)
+                {
+                    sb.Append(charArray[i]);
+                    if (sb.Length >= length)
+                        break;
+                    continue;
+                }
+                sb = new StringBuilder();
+            }
+            await Context.Channel.SendMessageAsync(sb.ToString().Insert(0, "https://www.youtube.com"));
+        }
+
+        [Command("find ping")]
+        [Summary("Finds the last ping someone sent you that wasn't sent by the bot.")]
+        public async Task FP([Remainder] string Input = null)
+        {
+            var p = Context.Channel.GetMessagesAsync(20000).FlattenAsync().Result.ToList();
+            bool custom = ulong.TryParse(Input, out ulong customSearch);
+            if (!custom)
+                customSearch = Context.User.Id;
+            string url = string.Empty;
+            for (int i = 0; i < p.Count; i++)
+            {
+                if (p[i].Author.IsBot)
+                    continue;
+                if (p[i].Content.Contains("@") && p[i].Content.Contains($"{customSearch}"))
+                {
+                    url = p[i].GetJumpUrl();
+                    break;
+                }
+            }
+            if (url == string.Empty)
+            {
+                await Context.Channel.SendMessageAsync("I scanned 20000 messages and found no ping!");
+                return;
+            }
+            await Context.Channel.SendMessageAsync(url);
+        }
 
         [Command("pi")]
         [Summary("Prints out as many characters of pi as Discord will allow in a single message.")]
@@ -113,7 +399,7 @@ namespace NepBot.Core.Commands
         }
 
 
-        [Command("Spaghet")]
+        [Command("spaghet")]
         [Summary("Posts the spaghet meme video.")]
         public async Task Spaghet()
         {
@@ -139,7 +425,7 @@ namespace NepBot.Core.Commands
             return false;
         }
 
-        [Command("RandomLast")]
+        [Command("randomlast")]
         [Summary("Grabs the last (x) number of messages sent in this channel and randomizes all words then reposts it. Type !nep randomlast (number of messages)")]
         public async Task RandomLast([Remainder] string Input = null)
         {
@@ -216,7 +502,19 @@ namespace NepBot.Core.Commands
             await base.Context.Channel.SendMessageAsync(sb.ToString(), false, null, null);
         }
 
-        [Command("RandomText")]
+        [Command("pingme")]
+        [Summary("Have the bot ping you if you are inactive for a week or longer")]
+        public async Task PingMe()
+        {
+            UserData ud = ExtensionMethods.FindPerson(Context.User.Id);
+            ud.pingForInactivity = !ud.pingForInactivity;
+            if (ud.pingForInactivity)
+                await Context.Channel.SendMessageAsync("pinging you if you are inactive for 2 days or longer");
+            if (!ud.pingForInactivity)
+                await Context.Channel.SendMessageAsync("No longer pinging you if you are inactive for 2 days or longer");
+        }
+
+        [Command("randomtext")]
         [Summary("Randomizes the text you input here. Type !nep randomtext (paste text here)")]
         public async Task RandomText([Remainder] string Input = null)
         {
@@ -268,7 +566,7 @@ namespace NepBot.Core.Commands
         {
             SocketUser contUser = base.Context.User;
             UserData ud = ExtensionMethods.FindPerson(contUser.Id);
-            bool flag = ud.Pudding < 1UL;
+            bool flag = ud.Pudding < 1;
             if (flag)
             {
                 await base.Context.Channel.SendMessageAsync("aww... quit your teasing. You don't even have any pudding to give me... #SadNepu.", false, null, null);
@@ -276,8 +574,7 @@ namespace NepBot.Core.Commands
             else
             {
                 ud.Pudding -= 1UL;
-                Program.miscBotData.totalPudding += 1UL;
-                await base.Context.Channel.SendMessageAsync(string.Format($"You lost 1 pudding, but Neptune's happy because she's been given a total of {0} pudding! Give yourself a pat on the back!\n {urlList[8]}", Program.miscBotData.totalPudding), false, null, null);
+                await base.Context.Channel.SendMessageAsync($"You lost 1 pudding, but Neptune's happy because she's been given a total of {++Program.miscBotData.totalPudding} pudding! Give yourself a pat on the back!\n {urlList[8]}");
             }
         }
 
@@ -294,8 +591,27 @@ namespace NepBot.Core.Commands
         [Summary("Gives Nepbot an eggplant. Are you really this sadistic? It keeps a record of all eggplant given to it.")]
         public async Task GiveEggplant()
         {
-            Program.miscBotData.totalEggplant += 1UL;
-            await base.Context.Channel.SendMessageAsync(string.Format($"Total of {0} was given to me! You're satan! You evil! You... oh I think I'm going to be siiiiiick!!\n {urlList[6]}", Program.miscBotData.totalEggplant), false, null, null);
+            try
+            {
+
+                await Context.Channel.SendMessageAsync($"Total of {++Program.miscBotData.totalEggplant} was given to me! You're satan! You evil! " +
+                    $"You... oh I think I'm going to be siiiiiick!!\n {urlList[6]} ");
+
+            }
+            catch (Exception i)
+            {
+                await Context.Channel.SendMessageAsync(string.Format($"{urlList.Count}\n>>>" + "{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
+                {
+                    i.Message,
+                    i.TargetSite,
+                    i.Source,
+                    i.InnerException,
+                    i.StackTrace,
+                    i.HResult,
+                    i.Data,
+                    i.HelpLink
+                }));
+            }
         }
 
         [Command("wtf")]

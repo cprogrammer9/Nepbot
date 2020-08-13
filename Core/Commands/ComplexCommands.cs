@@ -33,10 +33,11 @@ namespace NepBot.Core.Commands
         private readonly string imgurls = Program.DataPath("imgurls", "txt");
         public readonly string Testttt = "";
         static TaskControl tk;
-        public static List<ToReplace> rum = new List<ToReplace>();
+        public static List<ToReplace<RestUserMessage>> rum = new List<ToReplace<RestUserMessage>>();
+        public static List<ToReplace<SocketUserMessage>> sum = new List<ToReplace<SocketUserMessage>>();
         public const int timerDuration = 40000;
 
-        [Command("ImageOverImage")]
+        [Command("imageOverimage")]
         [Alias("ioi")]
         [Summary("Places an image over another image. Type !nep ioi {name of image}&{image url}&x offset&y offset\nJust enter a number for the offsets if necessary. This is in case the image isn't centered properly it gives you some manual control.")]
 
@@ -44,6 +45,11 @@ namespace NepBot.Core.Commands
         {
             try
             {
+                if (!HasSeparator(Context.Message.Content))
+                {
+                    await Context.Channel.SendMessageAsync("It's !nep ioi (image name)&bottom text&top text");
+                    return;
+                }
                 var split = ExtensionMethods.GenericSplit(Input, "|", "&");
                 ImageData id = new ImageData();
                 GraphicsMethods gm = new GraphicsMethods();
@@ -95,11 +101,16 @@ namespace NepBot.Core.Commands
 
         }
 
-        [Command("Vote")]
+        [Command("vote")]
         [Summary("Create a react vote for funsies or realzies. You can use your own emoji or let the bot pick randomly.\nType !nep (question or comment)|Choice1(emoji if any)|Choice2(emoji if any) etc")]
 
         public async Task Vote([Remainder] string Input = null)
         {
+            if (!HasSeparator(Context.Message.Content))
+            {
+                await Context.Channel.SendMessageAsync("It's !nep vote (thing being asked to vote for)&(vote option 1)&(vote option 2) etc");
+                return;
+            }
             var split = ExtensionMethods.GenericSplit(Input, "|", "&");
             var emojis = Context.Guild.Emotes.ToList();
             List<GuildEmote> emojiIds = new List<GuildEmote>();
@@ -140,7 +151,7 @@ namespace NepBot.Core.Commands
             //await g.AddReactionsAsync(emojiIds.ToArray());
         }
 
-        [Command("ListCustomEmojis")]
+        [Command("listcustomemojis")]
         [Alias("ListCustomEmoji", "CustomEmojiList", "ListEmojis", "ListEms", "EmojiList", "GifList", "emoji list")]
         [Summary("Gets a list of custom gif emojis you can use in chat. Type !(emojiname) to use them!")]
         public async Task AddIMG()
@@ -154,7 +165,7 @@ namespace NepBot.Core.Commands
             await base.Context.Channel.SendMessageAsync(sb.ToString(), false, null, null);
         }
 
-        [Command("Random Emoji")]
+        [Command("random emoji")]
         [Summary("Posts a random gif emoji from the bot list into the chat.")]
         public async Task RandomEmoji()
         {
@@ -174,11 +185,11 @@ namespace NepBot.Core.Commands
             //tk = new TaskControl(EndTimer, timerDuration);
         }
 
-        public struct ToReplace
+        public struct ToReplace<T>
         {
-            public RestUserMessage originalMessage;
+            public T originalMessage;
             public string removal;
-            public ToReplace(RestUserMessage originalMessage, string removal)
+            public ToReplace(T originalMessage, string removal)
             {
                 this.originalMessage = originalMessage;
                 this.removal = removal;
@@ -196,6 +207,11 @@ namespace NepBot.Core.Commands
                     f.originalMessage.ModifyAsync(x => x.Content = f.removal);
                 }
                 rum.Clear();
+                foreach (var f in sum)
+                {
+                    f.originalMessage.ModifyAsync(x => x.Content = f.removal);
+                }
+                sum.Clear();
             }
             catch (Exception i)
             {
@@ -214,7 +230,7 @@ namespace NepBot.Core.Commands
         }
 
         [RequireContext(ContextType.Guild)]
-        [Command("AddImg")]
+        [Command("addimg")]
         [Summary("(gifs only please) Adds an image to the bot's emoji list to be used by others. Format: !nep addimg (name)|(url) (no parenthesis)")]
         public async Task AddIMG([Remainder] string Input = null)
         {
@@ -341,7 +357,7 @@ namespace NepBot.Core.Commands
             }
         }
 
-        [Command("Pat")]
+        [Command("pat")]
         [Alias("pet", "pats", "headpat", "head pat")]
         [Summary("Sends a random gif patting the person. !nep pat (name)")]
 
@@ -353,32 +369,44 @@ namespace NepBot.Core.Commands
             SocketUser name = ExtensionMethods.GetSocketUser(Input, Context, false);
             string tots = string.Format("<@{0}> pats <@{1}>!\n{2}", base.Context.User.Id, name.Id, pick);
             var f = await base.Context.Channel.SendMessageAsync(tots);
-            rum.Add(new ToReplace(f, tots.Replace(pick, string.Empty)));
+            rum.Add(new ToReplace<RestUserMessage>(f, tots.Replace(pick, string.Empty)));
             tk = new TaskControl(EndTimer, timerDuration);
         }
 
-        [Command("CaptionGif")]
+        [Command("captiongif")]
         [Summary("Captions a gif with the text of your choice. You can actually caption the gif with multiple kinds of text, just add blanks to skip a frame. Type !captiongif (url)|get frames if you want to get the total frames so you know how much text you can add")]
 
         public async Task CaptionGif([Remainder] string Input = null)
         {
             try
             {
+                if (Input == null)
+                {
+                    await Context.Channel.SendMessageAsync("You need to post a gif URL and text! !nep captiongif (url)&(text) etc.");
+                    return;
+                }
                 if (Input.ToLower() == "help")
                 {
                     await Context.Channel.SendMessageAsync("Captions a gif with the text of your choice. You can actually caption the gif with multiple kinds of text, just add blanks to skip a frame. " +
                         "Type !captiongif (url)|get frames if you want to get the total frames so you know how much text you can add. |is a frame skip. Each| you add after text skips the frame");
                     return;
                 }
+                if (!HasSeparator(Context.Message.Content))
+                {
+                    await Context.Channel.SendMessageAsync("It's !nep caption gif (gif url)&(frame 1)&(frame 2) etc");
+                    return;
+                }
+                bool hasAttachment = Context.Message.Attachments.ToArray().Length > 0;
                 var f = ExtensionMethods.GenericSplit(Input, "|", "&");
                 HttpClient cw = new HttpClient();
-                Stream stream2 = await cw.GetStreamAsync(f[0]);
+                Stream stream2 = await cw.GetStreamAsync((hasAttachment) ? Context.Message.Attachments.ToArray()[0].Url : f[0]);
                 Stream response = stream2;
                 MemoryStream finalOutput = new MemoryStream();
                 response.CopyTo(finalOutput);
                 finalOutput.Position = 0;
                 var bitMap = System.Drawing.Image.FromStream(finalOutput);
                 GifInfo gi = new GifInfo(bitMap);
+                Console.WriteLine(Input);
                 if (f[1].ToLower() == "get frames")
                 {
                     await Context.Channel.SendMessageAsync(gi.FrameCount.ToString() + " total frames in this gif");
@@ -436,14 +464,36 @@ namespace NepBot.Core.Commands
         [Summary("Posts a random slap gif. Type !nep slap (person's name)")]
         public async Task Hit([Remainder] string Input = null)
         {
-            string p = File.ReadAllText(Program.DataPath("slaps", "txt"));
-            string[] slaps = p.Split('|');
-            string pick = slaps[UtilityClass.ReturnRandom(0, slaps.Length)];
-            SocketUser name = ExtensionMethods.GetSocketUser(Input, Context, false);
-            string tots = $"{Context.User.Id.FormatTag(TagT.user)} hits {name.Id.FormatTag(TagT.user)}!\n{pick}";
-            var f = await base.Context.Channel.SendMessageAsync(tots);
-            rum.Add(new ToReplace(f, tots.Replace(pick, string.Empty)));
-            tk = new TaskControl(EndTimer, timerDuration);
+            try
+            {
+                string p = File.ReadAllText(Program.DataPath("slaps", "txt"));
+                string[] slaps = p.Split('|');
+                string pick = slaps[UtilityClass.ReturnRandom(0, slaps.Length)];
+                SocketUser name = ExtensionMethods.GetSocketUser(Input, Context, false);
+                if (name == null)
+                {
+                    await Context.Channel.SendMessageAsync("User not found. Did you type name correctly?");
+                    return;
+                }
+                string tots = $"{Context.User.Id.FormatTag(TagT.user)} hits {name.Id.FormatTag(TagT.user)}!\n{pick}";
+                var f = await base.Context.Channel.SendMessageAsync(tots);
+                rum.Add(new ToReplace<RestUserMessage>(f, tots.Replace(pick, string.Empty)));
+                tk = new TaskControl(EndTimer, timerDuration);
+            }
+            catch (Exception i)
+            {
+                await Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
+                {
+                    i.Message,
+                    i.TargetSite,
+                    i.Source,
+                    i.InnerException,
+                    i.StackTrace,
+                    i.HResult,
+                    i.Data,
+                    i.HelpLink
+                }));
+            }
         }
         //ミ(ノ￣^￣)ノ≡≡≡≡  ☆()￣□￣)/
         [Command("hug")]
@@ -455,11 +505,11 @@ namespace NepBot.Core.Commands
             SocketUser name = ExtensionMethods.GetSocketUser(Input, Context, false);
             string tots = $"<@{Context.User.Id}> gives <@{name.Id}> a big hug!\n{url}";
             var f = await base.Context.Channel.SendMessageAsync(tots);
-            rum.Add(new ToReplace(f, tots.Replace(url, string.Empty)));
+            rum.Add(new ToReplace<RestUserMessage>(f, tots.Replace(url, string.Empty)));
             tk = new TaskControl(EndTimer, timerDuration);
         }
 
-        [Command("Pick")]
+        [Command("pick")]
         [Alias(
             "Bot of the server, what is your wisdom",
             "Bot of the server, what is your wisdom?",
@@ -494,7 +544,7 @@ namespace NepBot.Core.Commands
             await base.Context.Channel.SendMessageAsync(choice, false, null, null);
         }
 
-        [Command("My Rate")]
+        [Command("my rate")]
         [Summary("Check your pudding gains per post! This value increases depending on your levels!")]
         public async Task MyRate([Remainder] string Input = null)
         {
@@ -508,7 +558,7 @@ namespace NepBot.Core.Commands
             await base.Context.Channel.SendMessageAsync(string.Concat(
                 ExtensionMethods.NameGetter(contUser, base.Context.Guild),
                 " you gain pudding at this rate (based off your level):\nNon-Roleplay channel posts: ",
-                ((ulong)(5L + (long)ud.NonLevel / 5L)).ToString(),
+                ((ulong)(5L + (ulong)ud.NonLevel / 5L)).ToString(),
                 $"\nCasual Roleplay Posts: {ud.CasualRPExp(0)} + word count",
                 $"\nParagraph Roleplay Posts: {ud.ParaRPExp(0)} + word count\n",
                 $"Your daily pudding gains are at **{_math.DailyPudding(ud)}** related to ALL levels gained everywhere. Casual and Paragraph roleplay levels have higher multipliers with Paragraph having the highest!\nYou also gain additional pudding like +50, +75 etc for using bot commands like the meme commands!",
@@ -527,7 +577,7 @@ namespace NepBot.Core.Commands
             await g.SendMessageAsync("Here's the reminder you requested! ~Nepu ~Nepu\n" + reminder._message, false, null, null);
         }
 
-        [Command("AllNotes")]
+        [Command("allnotes")]
         [Alias(new string[]
         {
             "alln",
@@ -597,7 +647,7 @@ namespace NepBot.Core.Commands
             }
         }
 
-        [Command("Bot Meme List")]
+        [Command("bot meme list")]
         [Summary("Gives the image URL and command names for the images I have stored in my personal meme folder.")]
         public async Task CustomMemeHelp([Remainder] string Input = null)
         {
@@ -623,8 +673,8 @@ namespace NepBot.Core.Commands
             }
             catch (Exception i)
             {
-                    await Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
-                    {
+                await Context.Channel.SendMessageAsync(string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}", new object[]
+                {
                     i.Message,
                     i.TargetSite,
                     i.Source,
@@ -633,7 +683,7 @@ namespace NepBot.Core.Commands
                     i.HResult,
                     i.Data,
                     i.HelpLink
-                    }));
+                }));
             }
         }
         /*
@@ -752,7 +802,7 @@ namespace NepBot.Core.Commands
             }
         }
 
-        [Command("RollDice")]
+        [Command("rolldice")]
         [Summary("Does a random dice roll.Type!nep dice and either 1 - 75.")]
         public async Task DiceRoll([Remainder] string Input = null)
         {
@@ -900,11 +950,15 @@ namespace NepBot.Core.Commands
                     {
                         b.Append("\n").Append(x);
                     }
-                    List<string>.Enumerator enumerator = default(List<string>.Enumerator);
                     await base.Context.Channel.SendMessageAsync("Captions a meme from a meme of your choice using the !nep list all memes to view the memes hosted by imgflip. Or use these images to caption from my personal folder: " + b.ToString() + "\nSyntax: !nep meme MemeName.TopText.BottomText", false, null, null);
                 }
                 else
                 {
+                    if (!HasSeparator(Context.Message.Content))
+                    {
+                        await Context.Channel.SendMessageAsync("It's !nep meme (meme name)&bottom text&top text");
+                        return;
+                    }
                     Bitmap tester = null;
                     List<string> splitting = ExtensionMethods.RecreateMemeTextList(new List<string>(ExtensionMethods.GenericSplit(Input, "|", "&")));
                     tester = DataFiles.ReturnImage(splitting[0]);
@@ -924,7 +978,10 @@ namespace NepBot.Core.Commands
                     }
                     else
                     {
-                        var info = Program.DataPath("imgflip userid.txt").Split('|');
+                        var g = File.ReadAllText(Program.DataPath("imgflip userid", "txt"));
+                        var info = g.Split('|');
+                        Console.WriteLine(info[0]);
+                        Console.WriteLine(info[1]);
                         ImgFlipApi a = ImgFlipApi.Create(Utilities.MakeSecureStringFromString(info[0]), Utilities.MakeSecureStringFromString(info[1]));
                         string abc = a.Generate(splitting[0], splitting[1], splitting[2], splitting[3]).Result;
                         SocketUser contUser = base.Context.User;
@@ -964,7 +1021,6 @@ namespace NepBot.Core.Commands
                 {
                     await base.Context.Channel.SendMessageAsync(g, false, null, null);
                 }
-                List<string>.Enumerator enumerator = default(List<string>.Enumerator);
             }
         }
 
@@ -981,23 +1037,27 @@ namespace NepBot.Core.Commands
         }
 
         [Command("caption image")]
-        [Summary("Takes an image from a URL and captions it with whatever you tell it to. There are three ways you can use this:\n1: !nep caption image URL | TopText | BottomText(Writes all text)\n2: !nep caption image URL | bottomText(Writes only top text)\n3: !nep caption image | URL | topText(Writes only bottom text)")]
+        [Summary("Takes an image from a URL and captions it with whatever you tell it to. (You can either add a URL, or skip the url and upload the image while using the bot command)  There are three ways you can use this:\n1: !nep caption image URL | TopText | BottomText(Writes all text)\n2: !nep caption image URL | bottomText(Writes only top text)\n3: !nep caption image | URL | topText(Writes only bottom text)")]
         public async Task MakeMemeURL([Remainder] string Input = null)
         {
-            List<string> splitting = ExtensionMethods.GenericSplit(Input, "|", "&").ToList();
-            string text = (splitting.Count >= 2) ? splitting[1].ToUpper() : string.Empty;
-            string text2 = (splitting.Count >= 3) ? splitting[2].ToUpper() : string.Empty;
-            Stream response = null;
-            Bitmap bitMap = null;
+            var splitting = ExtensionMethods.GenericSplit(Input, "|", "&");
+            Stream response;
+            Bitmap bitMap;
+            bool hasAttachment = Context.Message.Attachments.Count > 0;
+            if (!HasSeparator(Context.Message.Content))
+            {
+                await Context.Channel.SendMessageAsync("It's !nep caption image (url)&bottom text&top text");
+                return;
+            }
             HttpClient cw = new HttpClient();
             try
             {
-                Stream stream2 = await cw.GetStreamAsync(splitting[0]);
+                Stream stream2 = await cw.GetStreamAsync((hasAttachment) ? Context.Message.Attachments.ToArray()[0].Url : splitting[0]);
                 response = stream2;
                 stream2 = null;
                 bitMap = (Bitmap)System.Drawing.Image.FromStream(response);
                 MemoryStream stream = new MemoryStream();
-                ExtensionMethods.TextToImage(splitting, ref bitMap, ref stream);
+                ExtensionMethods.TextToImage(splitting.ToList(), ref bitMap, ref stream, Context.Message.Attachments.Count > 0);
                 SocketUser contUser = base.Context.User;
                 UserData ud = ExtensionMethods.FindPerson(contUser.Id);
                 ud.Pudding += 75UL;
@@ -1008,7 +1068,8 @@ namespace NepBot.Core.Commands
             }
             catch (Exception j)
             {
-                string mainMsg = string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}", new object[]
+                string mainMsg = "Command entered incorrectly. Attach an image then (top text)&(bottom text) OR use an image URL (URL)&(top text)&(bottom text)";
+                /*string mainMsg = string.Format(">>> {0}\n{1}\n{2}\n{3}\n{4}\n{5}", new object[]
                 {
                                 j.Message,
                                 j.TargetSite,
@@ -1017,8 +1078,8 @@ namespace NepBot.Core.Commands
                                 j.StackTrace,
                                 j.HResult
                 });
-                ExtensionMethods.WriteToLog(ExtensionMethods.LogType.ErrorLog, j, "CPP problem");
-                await base.Context.Channel.SendMessageAsync(mainMsg, false, null, null);
+                ExtensionMethods.WriteToLog(ExtensionMethods.LogType.ErrorLog, j, "CPP problem");*/
+                await base.Context.Channel.SendMessageAsync(mainMsg);
             }
         }
 
@@ -1029,33 +1090,39 @@ namespace NepBot.Core.Commands
         {
             try
             {
-                var splitting = ExtensionMethods.GenericSplit(Input, "|", "&").ToList();
+                if (Input == null)//!HasSeparator(Context.Message.Content))
+                {
+                    await Context.Channel.SendMessageAsync("It's !nep cpp (name)&bottom text&top text");
+                    return;
+                }
+                var splitting = ExtensionMethods.GenericSplit(Input, "|", "&");
                 Stream response = null;
                 Bitmap bitMap = null;
                 HttpClient cw = new HttpClient();
                 SocketUser User = null;
-                //ulong userId = 0;
                 string tag = string.Empty;
+                string defaultToYou = string.Empty;
                 User = ExtensionMethods.GetSocketUser(splitting[0], Context, false);
                 if (User == null)
                 {
-                    await Context.Channel.SendMessageAsync("User not found on server");
-                    return;
+                    defaultToYou = "User not found on server, defaulting to you\n";
+                    User = Context.User;
                 }
                 try
                 {
-                    Stream stream2 = await cw.GetStreamAsync(User.GetAvatarUrl(Discord.ImageFormat.Auto, 2048));
+                    string pic = User.GetAvatarUrl(Discord.ImageFormat.Auto, 2048);
+                    Stream stream2 = await cw.GetStreamAsync(pic);
                     response = stream2;
                     MemoryStream streamtest = new MemoryStream();
                     response.CopyTo(streamtest);
                     streamtest.Position = 0;
                     bitMap = (Bitmap)System.Drawing.Image.FromStream(streamtest);
-                    tag = bitMap.ImageFormatType().ToString().ToLower();
-                    if (splitting.Count == 1)
-                    {
+                    tag = (!pic.Contains("gif")) ? bitMap.ImageFormatType().ToString().ToLower() : "gif";
 
+                    if (splitting.Length == 1)
+                    {
                         streamtest.Position = 0;
-                        await Context.Channel.SendFileAsync(streamtest, $"Pudding.{tag}", "Pudding Delivery!~Nepu", false, null, null);
+                        await Context.Channel.SendFileAsync(streamtest, $"{defaultToYou}Pudding.{tag}", "Pudding Delivery!~Nepu", false, null, null);
                         streamtest.Close();
                         bitMap.Dispose();
                         stream2.Close();
@@ -1071,8 +1138,26 @@ namespace NepBot.Core.Commands
                     }
                     else
                     {
+                        if (tag == "gif")
+                        {
+                            Input = Input.Replace($"{splitting[0]}&", string.Empty);
+                            var x = pic.Split('?');
+                            if (x.Length > 1)
+                            {
+                                pic = pic.Replace($"{x[1]}", string.Empty);
+                                pic = pic.Replace($"?", string.Empty);
+                            }
+                            Console.WriteLine(Input);
+                            Console.WriteLine(pic);
+                            await CaptionGif($"{pic}&{Input}");
+                            streamtest.Close();
+                            bitMap.Dispose();
+                            stream2.Close();
+                            response.Close();
+                            return;
+                        }
                         MemoryStream stream = new MemoryStream();
-                        ExtensionMethods.TextToImage(splitting, ref bitMap, ref stream);
+                        ExtensionMethods.TextToImage(splitting.ToList(), ref bitMap, ref stream, Context.Message.Attachments.Count > 0);
                         SocketUser contUser = base.Context.User;
                         UserData ud = ExtensionMethods.FindPerson(contUser.Id);
                         ud.Pudding += 50UL;
@@ -1113,9 +1198,9 @@ namespace NepBot.Core.Commands
             }
         }
 
-        [Command("Nep's pudding")]
+        [Command("nep's pudding")]
         [Alias("neps pudding", "daily")]
-        [Summary("Gives you a lot of pudding. Can do this once per day. The amount you gain is based off your level in both roleplay types and your non roleplay level. Default is 1000")]
+        [Summary("Gives you a lot of pudding (you type !nep daily instead). Can do this once per day. The amount you gain is based off your level in both roleplay types and your non roleplay level. Default is 1000")]
         public async Task GetPudding()
         {
             SocketUser contUser = base.Context.User;
@@ -1136,6 +1221,11 @@ namespace NepBot.Core.Commands
                 //Console.WriteLine("USED DAILY PUDDING: " + UserData.UsedDailyPudding);
                 await Context.Channel.SendMessageAsync($"NOPE! Pudding's all mine! You already had your share today... all {p} of them! You'll have to wait until {f} ~nepu");
             }
+        }
+
+        private bool HasSeparator(string msg)
+        {
+            return msg.Contains("&") || msg.Contains("|");
         }
     }
 }
